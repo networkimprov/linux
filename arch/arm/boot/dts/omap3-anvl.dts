@@ -1,0 +1,168 @@
+/*
+ * Copyright (C) 2013 Network Improv
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+/dts-v1/;
+
+/include/ "omap36xx.dtsi"
+
+/ {
+	model = "Nework Improv ANVL";
+	compatible = "ti,omap3-anvl", "ti,omap3";
+
+	cpus {
+		cpu@0 {
+			cpu0-supply = <&vcc>;
+		};
+	};
+
+	memory {
+		device_type = "memory";
+		reg = <0x80000000 0x20000000>;	/* 512 MB */
+	};
+
+	fixed_1v8_io: fixed_1v8_io {
+		compatible = "regulator-fixed";
+		regulator-name = "1v8_io";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-boot-on;
+	};
+
+	fixed_3v3_sys: fixed_3v3_sys {
+		compatible = "regulator-fixed";
+		regulator-name = "3v3_sys";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-boot-on;
+	};
+
+	fixed_wlan: fixed_wlan {
+		compatible = "regulator-fixed";
+		regulator-name = "fixed_wlan";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		enable-active-high;
+		gpio = <&gpio5 27 0>;	/* gpio155 */
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		heartbeat {
+			label = "anvl::cpu0";
+			gpios = <&gpio6 15 0>;	/* gpio175 */
+			linux,default-trigger = "cpu0";
+		};
+	};
+};
+
+&omap3_pmx_core {
+	mmc1_pins: pinmux_mmc1_pins {
+		pinctrl-single,pins = <
+			0x114 0x18	/* sdmmc1_clk.sdmmc1_clk OUTPUT_PULLUP | MODE0 */
+			0x116 0x18	/* sdmmc1_cmd.sdmmc1_cmd OUTPUT_PULLUP | MODE0 */
+			0x118 0x118	/* sdmmc1_dat0.sdmmc1_dat0 INPUT_PULLUP | MODE0 */
+			0x11a 0x118	/* sdmmc1_dat1.sdmmc1_dat1 INPUT_PULLUP | MODE0 */
+			0x11c 0x118	/* sdmmc1_dat2.sdmmc1_dat2 INPUT_PULLUP | MODE0 */
+			0x11e 0x118	/* sdmmc1_dat3.sdmmc1_dat3 INPUT_PULLUP | MODE0 */
+		>;
+	};
+
+	mmc2_pins: pinmux_mmc2_pins {
+		pinctrl-single,pins = <
+			0xb6 0x3e1c	/* dss_data5.gpio_75 gpio75 OFF* | OUTPUT | MODE4 EMMC_RESET */
+			0x128 0x118	/* sdmmc2_clk.sdmmc2_clk INPUT_PULLUP | MODE0 */
+			0x12a 0x118	/* sdmmc2_cmd.sdmmc2_cmd INPUT_PULLUP | MODE0 */
+			0x12c 0x100	/* sdmmc2_dat0.sdmmc2_dat0 INPUT | MODE0 */
+			0x12e 0x100	/* sdmmc2_dat1.sdmmc2_dat1 INPUT | MODE0 */
+			0x130 0x100	/* sdmmc2_dat2.sdmmc2_dat2 INPUT | MODE0 */
+			0x132 0x100	/* sdmmc2_dat3.sdmmc2_dat3 INPUT | MODE0 */
+			0x134 0x100	/* sdmmc2_dat4.sdmmc2_dat4 INPUT | MODE0 */
+			0x136 0x100	/* sdmmc2_dat5.sdmmc2_dat5 INPUT | MODE0 */
+			0x138 0x100	/* sdmmc2_dat6.sdmmc2_dat6 INPUT | MODE0 */
+			0x13a 0x100	/* sdmmc2_dat7.sdmmc2_dat7 INPUT | MODE0 */
+		>;
+	};
+
+	mmc3_pins: pinmux_mmc3_pins {
+		pinctrl-single,pins = <
+			0x15a 0x104	/* mcbsp4_fsx.gpio_155 INPUT | MODE4 WLAN_PDN */
+			0x1a4 0x104	/* mcspi1_cs3.gpio_177 INPUT | MODE4 WLAN_SLEEP */
+			0x156 0x104	/* mcbsp4_dr.gpio_153 INPUT | MODE4 WLAN_WKUP */
+			0x1a2 0x114	/* mcspi1_cs2.gpio_176 INPUT | MODE4 WLAN_EEPROM_WP */
+			0x5a8 0x11a	/* etk_clk.sdmmc3_clk INPUT_PULLUP | MODE2 */
+			0x5aa 0x11a	/* etk_ctl.sdmmc3_cmd INPUT_PULLUP | MODE2 */
+			0x5b2 0x11a	/* etk_d3.sdmmc3_dat3 INPUT_PULLUP | MODE2 */
+			0x5b4 0x11a	/* etk_d4.sdmmc3_dat0 INPUT_PULLUP | MODE2 */
+			0x5b6 0x11a	/* etk_d5.sdmmc3_dat1 INPUT_PULLUP | MODE2 */
+			0x5b8 0x11a	/* etk_d6.sdmmc3_dat2 INPUT_PULLUP | MODE2 */
+		>;
+	};
+};
+
+&omap3_pmx_wkup {
+	/* REVISIT: This should have OFF wake enabled once we have handling for it */
+	wlan_host_wkup: pinmux_wlan_host_wkup_pins {
+		pinctrl-single,pins = <
+			0x1a 0x11c	/* sys_clkout1.gpio_10 INPUT_PULLUP | MODE4 WLAN_HOST_WKUP */
+		>;
+	};
+};
+
+&i2c1 {
+	clock-frequency = <2600000>;
+
+	twl: twl@48 {
+		reg = <0x48>;
+		interrupts = <7>;	/* SYS_NIRQ */
+		interrupt-parent = <&intc>;
+	};
+};
+
+/include/ "twl4030.dtsi"
+
+&i2c2 {
+	clock-frequency = <400000>;
+};
+
+&mmc1 {
+	vmmc-supply = <&vmmc1>;
+	bus-width = <4>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&mmc1_pins>;
+};
+
+&mmc2 {
+	vmmc-supply = <&fixed_1v8_io>;
+	ti,non-removable;
+	bus-width = <8>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&mmc2_pins>;
+};
+
+&mmc3 {
+	vmmc-supply = <&fixed_wlan>;
+	non-removable;
+	bus-width = <4>;
+	cap-power-off-card;
+	pinctrl-names = "default";
+	pinctrl-0 = <&mmc3_pins &wlan_host_wkup>;
+};
+
+&uart2 {
+	status = "disabled";
+};
+
+&uart4 {
+	status = "disabled";
+};
+
+&usb_otg_hs {
+	interface-type = <0>;
+	usb-phy = <&usb2_phy>;
+	mode = <3>;
+	power = <50>;
+};
