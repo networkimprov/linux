@@ -26,6 +26,7 @@
 
 #include "core.h"
 #include "pinconf.h"
+#include "pinctrl-single.h"
 
 #define DRIVER_NAME			"pinctrl-single"
 #define PCS_MUX_PINS_NAME		"pinctrl-single,pins"
@@ -162,7 +163,6 @@ struct pcs_name {
  * @fshift:	function register shift
  * @foff:	value to turn mux off
  * @fmax:	max number of functions in fmask
- * @is_pinconf:	whether supports pinconf
  * @bits_per_pin:number of bits per pin
  * @names:	array of register names for pins
  * @pins:	physical pins on the SoC
@@ -176,6 +176,7 @@ struct pcs_name {
  * @desc:	pin controller descriptor
  * @read:	register read function to use
  * @write:	register write function to use
+ * @soc:	SoC glue
  */
 struct pcs_device {
 	struct resource *res;
@@ -190,8 +191,8 @@ struct pcs_device {
 	unsigned foff;
 	unsigned fmax;
 	bool bits_per_mux;
-	bool is_pinconf;
 	unsigned bits_per_pin;
+	unsigned flags;
 	struct pcs_name *names;
 	struct pcs_data pins;
 	struct radix_tree_root pgtree;
@@ -204,6 +205,7 @@ struct pcs_device {
 	struct pinctrl_desc desc;
 	unsigned (*read)(void __iomem *reg);
 	void (*write)(unsigned val, void __iomem *reg);
+	const struct pcs_soc *soc;
 };
 
 static int pcs_pinconf_get(struct pinctrl_dev *pctldev, unsigned pin,
@@ -1049,7 +1051,7 @@ static int pcs_parse_pinconf(struct pcs_device *pcs, struct device_node *np,
 	};
 
 	/* If pinconf isn't supported, don't parse properties in below. */
-	if (!pcs->is_pinconf)
+	if (!(pcs->flags & PCS_HAS_PINCONF))
 		return 0;
 
 	/* cacluate how much properties are supported in current node */
@@ -1173,7 +1175,7 @@ static int pcs_parse_one_pinctrl_entry(struct pcs_device *pcs,
 	(*map)->data.mux.group = np->name;
 	(*map)->data.mux.function = np->name;
 
-	if (pcs->is_pinconf) {
+	if (pcs->flags & PCS_HAS_PINCONF) {
 		res = pcs_parse_pinconf(pcs, np, function, map);
 		if (res)
 			goto free_pingroups;
@@ -1294,7 +1296,7 @@ static int pcs_parse_bits_in_pinctrl_entry(struct pcs_device *pcs,
 	(*map)->data.mux.group = np->name;
 	(*map)->data.mux.function = np->name;
 
-	if (pcs->is_pinconf) {
+	if (pcs->flags & PCS_HAS_PINCONF) {
 		dev_err(pcs->dev, "pinconf not supported\n");
 		goto free_pingroups;
 	}
@@ -1483,17 +1485,13 @@ static int pcs_add_gpio_func(struct device_node *node, struct pcs_device *pcs)
 	return ret;
 }
 
-static int pcs_probe(struct platform_device *pdev)
+int pinctrl_single_probe(struct platform_device *pdev,
+			 const struct pcs_soc *soc)
 {
 	struct device_node *np = pdev->dev.of_node;
-	const struct of_device_id *match;
 	struct resource *res;
 	struct pcs_device *pcs;
 	int ret;
-
-	match = of_match_device(pcs_of_match, &pdev->dev);
-	if (!match)
-		return -EINVAL;
 
 	pcs = devm_kzalloc(&pdev->dev, sizeof(*pcs), GFP_KERNEL);
 	if (!pcs) {
@@ -1505,7 +1503,8 @@ static int pcs_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&pcs->pingroups);
 	INIT_LIST_HEAD(&pcs->functions);
 	INIT_LIST_HEAD(&pcs->gpiofuncs);
-	pcs->is_pinconf = match->data;
+	pcs->flags = soc->flags;
+	pcs->soc = soc;
 
 	PCS_GET_PROP_U32("pinctrl-single,register-width", &pcs->width,
 			 "register width not specified\n");
@@ -1574,7 +1573,7 @@ static int pcs_probe(struct platform_device *pdev)
 	pcs->desc.name = DRIVER_NAME;
 	pcs->desc.pctlops = &pcs_pinctrl_ops;
 	pcs->desc.pmxops = &pcs_pinmux_ops;
-	if (pcs->is_pinconf)
+	if (pcs->flags & PCS_HAS_PINCONF)
 		pcs->desc.confops = &pcs_pinconf_ops;
 	pcs->desc.owner = THIS_MODULE;
 
@@ -1603,8 +1602,20 @@ free:
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(pinctrl_single_probe);
 
-static int pcs_remove(struct platform_device *pdev)
+static int pcs_probe(struct platform_device *pdev)
+{
+	const struct of_device_id *match;
+
+	match = of_match_device(pcs_of_match, &pdev->dev);
+	if (!match)
+		return -EINVAL;
+
+	return pinctrl_single_probe(pdev, (struct pcs_soc *)match->data);
+}
+
+int pinctrl_single_remove(struct platform_device *pdev)
 {
 	struct pcs_device *pcs = platform_get_drvdata(pdev);
 
@@ -1615,17 +1626,26 @@ static int pcs_remove(struct platform_device *pdev)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(pinctrl_single_remove);
+
+static struct pcs_soc pinctrl_single = {
+	.flags = 0,
+};
+
+static struct pcs_soc pinconf_single = {
+	.flags = PCS_HAS_PINCONF,
+};
 
 static struct of_device_id pcs_of_match[] = {
-	{ .compatible = "pinctrl-single", .data = (void *)false },
-	{ .compatible = "pinconf-single", .data = (void *)true },
+	{ .compatible = "pinctrl-single", .data = &pinctrl_single },
+	{ .compatible = "pinconf-single", .data = &pinconf_single },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, pcs_of_match);
 
 static struct platform_driver pcs_driver = {
 	.probe		= pcs_probe,
-	.remove		= pcs_remove,
+	.remove		= pinctrl_single_remove,
 	.driver = {
 		.owner		= THIS_MODULE,
 		.name		= DRIVER_NAME,
