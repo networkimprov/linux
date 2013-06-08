@@ -19,6 +19,8 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/of_address.h>
+#include <linux/of_gpio.h>
+#include <linux/of_irq.h>
 
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/pinctrl/pinmux.h>
@@ -95,6 +97,8 @@ struct pcs_conf_type {
  * @nvals:	number of entries in vals array
  * @pgnames:	array of pingroup names the function uses
  * @npgnames:	number of pingroup names the function uses
+ * @irq:	optional irq associated with the function
+ * @gpio:	optional gpio associated with the function
  * @node:	list node
  */
 struct pcs_function {
@@ -105,6 +109,8 @@ struct pcs_function {
 	int npgnames;
 	struct pcs_conf_vals *conf;
 	int nconfs;
+	int irq;
+	int gpio;
 	struct list_head node;
 };
 
@@ -411,6 +417,18 @@ static int pcs_get_function(struct pinctrl_dev *pctldev, unsigned pin,
 	return 0;
 }
 
+static void pcs_reg_init(struct pcs_reg *p, struct pcs_device *pcs,
+			 struct pcs_function *func,
+			 void __iomem *reg, unsigned val)
+{
+	p->read = pcs->read;
+	p->write = pcs->write;
+	p->irq = func->irq;
+	p->gpio = func->gpio;
+	p->reg = reg;
+	p->val = val;
+}
+
 static int pcs_enable(struct pinctrl_dev *pctldev, unsigned fselector,
 	unsigned group)
 {
@@ -444,6 +462,12 @@ static int pcs_enable(struct pinctrl_dev *pctldev, unsigned fselector,
 		val &= ~mask;
 		val |= (vals->val & mask);
 		pcs->write(val, vals->reg);
+		if ((func->irq || func->gpio) && pcs->soc && pcs->soc->enable) {
+			struct pcs_reg pcsr;
+
+			pcs_reg_init(&pcsr, pcs, func, vals->reg, val);
+			pcs->soc->enable(pcs->soc, &pcsr);
+		}
 	}
 
 	return 0;
@@ -468,18 +492,6 @@ static void pcs_disable(struct pinctrl_dev *pctldev, unsigned fselector,
 		return;
 	}
 
-	/*
-	 * Ignore disable if function-off is not specified. Some hardware
-	 * does not have clearly defined disable function. For pin specific
-	 * off modes, you can use alternate named states as described in
-	 * pinctrl-bindings.txt.
-	 */
-	if (pcs->foff == PCS_OFF_DISABLED) {
-		dev_dbg(pcs->dev, "ignoring disable for %s function%i\n",
-			func->name, fselector);
-		return;
-	}
-
 	dev_dbg(pcs->dev, "disabling function%i %s\n",
 		fselector, func->name);
 
@@ -490,8 +502,28 @@ static void pcs_disable(struct pinctrl_dev *pctldev, unsigned fselector,
 		vals = &func->vals[i];
 		val = pcs->read(vals->reg);
 		val &= ~pcs->fmask;
-		val |= pcs->foff << pcs->fshift;
-		pcs->write(val, vals->reg);
+
+		/*
+		 * Ignore disable if function-off is not specified. Some
+		 * hardware does not have clearly defined disable function.
+		 * For pin specific off modes, you can use alternate named
+		 * states as described in pinctrl-bindings.txt.
+		 */
+		if (pcs->foff == PCS_OFF_DISABLED) {
+			dev_dbg(pcs->dev, "ignoring disable for %s function%i\n",
+				func->name, fselector);
+		} else {
+			val |= pcs->foff << pcs->fshift;
+			pcs->write(val, vals->reg);
+		}
+
+		if ((func->irq || func->gpio) &&
+		    pcs->soc && pcs->soc->disable) {
+			struct pcs_reg pcsr;
+
+			pcs_reg_init(&pcsr, pcs, func, vals->reg, val);
+			pcs->soc->disable(pcs->soc, &pcsr);
+		}
 	}
 }
 
@@ -1029,6 +1061,32 @@ static void pcs_add_conf4(struct pcs_device *pcs, struct device_node *np,
 	add_setting(settings, param, ret);
 }
 
+static int pcs_parse_wakeup(struct pcs_device *pcs, struct device_node *np,
+			     struct pcs_function *function)
+{
+	struct pcs_reg pcsr;
+	int i, ret = 0;
+
+	for (i = 0; i < function->nvals; i++) {
+		struct pcs_func_vals *vals;
+		unsigned mask;
+
+		vals = &function->vals[i];
+		if (pcs->bits_per_mux)
+			mask = vals->mask;
+		else
+			mask = pcs->fmask;
+
+		pcs_reg_init(&pcsr, pcs, function, vals->reg,
+			     vals->val & mask);
+		ret = pcs->soc->reg_init(pcs->soc, &pcsr);
+		if (ret)
+			break;
+	}
+
+	return ret;
+}
+
 static int pcs_parse_pinconf(struct pcs_device *pcs, struct device_node *np,
 			     struct pcs_function *func,
 			     struct pinctrl_map **map)
@@ -1183,6 +1241,24 @@ static int pcs_parse_one_pinctrl_entry(struct pcs_device *pcs,
 	} else {
 		*num_maps = 1;
 	}
+
+	if (pcs->flags & PCS_HAS_FUNCTION_IRQ)
+		function->irq = irq_of_parse_and_map(np, 0);
+
+	if (pcs->flags & PCS_HAS_FUNCTION_GPIO) {
+		function->gpio = of_get_gpio(np, 0);
+		if (function->gpio > 0 && !function->irq) {
+			if (gpio_is_valid(function->gpio))
+				function->irq = gpio_to_irq(function->gpio);
+		}
+	}
+
+	if (function->irq > 0 && pcs->soc && pcs->soc->reg_init) {
+		res = pcs_parse_wakeup(pcs, np, function);
+		if (res)
+			goto free_pingroups;
+	}
+
 	return 0;
 
 free_pingroups:
