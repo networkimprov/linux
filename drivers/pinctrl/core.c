@@ -1217,6 +1217,21 @@ int pinctrl_pm_select_default_state(struct device *dev)
 	return ret;
 }
 
+int pinctrl_pm_select_active_state(struct device *dev)
+{
+	struct dev_pin_info *pins = dev->pins;
+	int ret;
+
+	if (!pins)
+		return 0;
+	if (IS_ERR(pins->active_state))
+		return 0; /* No active state */
+	ret = pinctrl_select_state(pins->p, pins->active_state);
+	if (ret)
+		dev_err(dev, "failed to activate pinctrl active state\n");
+	return ret;
+}
+
 /**
  * pinctrl_pm_select_sleep_state() - select sleep pinctrl state for PM
  * @dev: device to select sleep state for

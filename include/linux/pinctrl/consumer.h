@@ -42,10 +42,15 @@ extern void devm_pinctrl_put(struct pinctrl *p);
 
 #ifdef CONFIG_PM
 extern int pinctrl_pm_select_default_state(struct device *dev);
+extern int pinctrl_pm_select_active_state(struct device *dev);
 extern int pinctrl_pm_select_sleep_state(struct device *dev);
 extern int pinctrl_pm_select_idle_state(struct device *dev);
 #else
 static inline int pinctrl_pm_select_default_state(struct device *dev)
+{
+	return 0;
+}
+static inline int pinctrl_pm_select_active_state(struct device *dev)
 {
 	return 0;
 }
@@ -219,6 +224,11 @@ static inline int pin_config_group_set(const char *dev_name,
 }
 
 static inline int pinctrl_pm_select_default_state(struct device *dev)
+{
+	return 0;
+}
+
+static inline int pinctrl_pm_select_active_state(struct device *dev)
 {
 	return 0;
 }
