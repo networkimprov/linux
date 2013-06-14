@@ -24,10 +24,18 @@
  * struct dev_pin_info - pin state container for devices
  * @p: pinctrl handle for the containing device
  * @default_state: the default state for the handle, if found
+ * @active_state: the active state for the handle, if found
+ * @sleep_state: the sleep state for the handle, if found
+ * @idle_state: the idle state for the handle, if found
  */
 struct dev_pin_info {
 	struct pinctrl *p;
 	struct pinctrl_state *default_state;
+#ifdef CONFIG_PM
+	struct pinctrl_state *active_state;
+	struct pinctrl_state *sleep_state;
+	struct pinctrl_state *idle_state;
+#endif
 };
 
 extern int pinctrl_bind_pins(struct device *dev);

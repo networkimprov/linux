@@ -94,7 +94,7 @@
 		};
 
 		omap3_pmx_core: pinmux@48002030 {
-			compatible = "ti,omap3-padconf", "pinctrl-single";
+			compatible = "ti,omap3-padconf";
 			reg = <0x48002030 0x05cc>;
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -103,7 +103,7 @@
 		};
 
 		omap3_pmx_wkup: pinmux@0x48002a00 {
-			compatible = "ti,omap3-padconf", "pinctrl-single";
+			compatible = "ti,omap3-padconf";
 			reg = <0x48002a00 0x5c>;
 			#address-cells = <1>;
 			#size-cells = <0>;

@@ -9,6 +9,10 @@
  *	hogs to configure muxing and pins at boot, and also as a state
  *	to go into when returning from sleep and idle in
  *	.pm_runtime_resume() or ordinary .resume() for example.
+ * @PINCTRL_STATE_ACTIVE: the state the pinctrl handle shall be put
+ *	into for explicitly active mode, typically in .pm_runtime_resume()
+ *	and other occasions where we want to be sure that the pins are
+ *	ready to roll.
  * @PINCTRL_STATE_IDLE: the state the pinctrl handle shall be put into
  *	when the pins are idle. This is a state where the system is relaxed
  *	but not fully sleeping - some power may be on but clocks gated for
@@ -20,5 +24,6 @@
  *	ordinary .suspend() function.
  */
 #define PINCTRL_STATE_DEFAULT "default"
+#define PINCTRL_STATE_ACTIVE "active"
 #define PINCTRL_STATE_IDLE "idle"
 #define PINCTRL_STATE_SLEEP "sleep"
