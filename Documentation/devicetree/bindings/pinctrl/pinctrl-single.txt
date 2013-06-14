@@ -18,7 +18,8 @@ Optional properties:
   pin functions is ignored
 
 - pinctrl-single,bit-per-mux : boolean to indicate that one register controls
-  more than one pin
+  more than one pin, for which "pinctrl-single,function-mask" property specifies
+ position mask of pin.
 
 - pinctrl-single,drive-strength : array of value that are used to configure
   drive strength in the pinmux register. They're value of drive strength
@@ -67,6 +68,10 @@ Optional properties:
   number in this range, GPIO function value of this GPIO range.
   The number of parameters is depend on #pinctrl-single,gpio-range-cells
   property.
+
+- interrrupts : the interrupt that a function may have for a wake-up event
+
+- gpios: the gpio that a function may have for a wake-up event
 
 		/* pin base, nr pins & gpio function */
 		pinctrl-single,gpio-range = <&range 0 3 0 &range 3 9 1>;
@@ -204,6 +209,7 @@ pmx_gpio: pinmux@d401e000 {
 			0xdc 0x118
 			0xde 0
 		>;
+		interrupts = <74>;
 	};
 };
 

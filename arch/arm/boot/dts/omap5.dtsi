@@ -100,7 +100,7 @@
 		};
 
 		omap5_pmx_core: pinmux@4a002840 {
-			compatible = "ti,omap4-padconf", "pinctrl-single";
+			compatible = "ti,omap4-padconf";
 			reg = <0x4a002840 0x01b6>;
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -108,7 +108,7 @@
 			pinctrl-single,function-mask = <0x7fff>;
 		};
 		omap5_pmx_wkup: pinmux@4ae0c840 {
-			compatible = "ti,omap4-padconf", "pinctrl-single";
+			compatible = "ti,omap4-padconf";
 			reg = <0x4ae0c840 0x0038>;
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -538,6 +538,7 @@
 			interrupts = <0 41 0x4>;
 			ti,hwmods = "timer5";
 			ti,timer-dsp;
+			ti,timer-pwm;
 		};
 
 		timer6: timer@4013a000 {
@@ -574,6 +575,7 @@
 			reg = <0x4803e000 0x80>;
 			interrupts = <0 45 0x4>;
 			ti,hwmods = "timer9";
+			ti,timer-pwm;
 		};
 
 		timer10: timer@48086000 {
@@ -581,6 +583,7 @@
 			reg = <0x48086000 0x80>;
 			interrupts = <0 46 0x4>;
 			ti,hwmods = "timer10";
+			ti,timer-pwm;
 		};
 
 		timer11: timer@48088000 {

@@ -197,29 +197,9 @@ static int serial_omap_get_context_loss_count(struct uart_omap_port *up)
 	struct omap_uart_port_info *pdata = up->dev->platform_data;
 
 	if (!pdata || !pdata->get_context_loss_count)
-		return 0;
+		return -EINVAL;
 
 	return pdata->get_context_loss_count(up->dev);
-}
-
-static void serial_omap_set_forceidle(struct uart_omap_port *up)
-{
-	struct omap_uart_port_info *pdata = up->dev->platform_data;
-
-	if (!pdata || !pdata->set_forceidle)
-		return;
-
-	pdata->set_forceidle(up->dev);
-}
-
-static void serial_omap_set_noidle(struct uart_omap_port *up)
-{
-	struct omap_uart_port_info *pdata = up->dev->platform_data;
-
-	if (!pdata || !pdata->set_noidle)
-		return;
-
-	pdata->set_noidle(up->dev);
 }
 
 static void serial_omap_enable_wakeup(struct uart_omap_port *up, bool enable)
@@ -298,8 +278,6 @@ static void serial_omap_stop_tx(struct uart_port *port)
 		serial_out(up, UART_IER, up->ier);
 	}
 
-	serial_omap_set_forceidle(up);
-
 	pm_runtime_mark_last_busy(up->dev);
 	pm_runtime_put_autosuspend(up->dev);
 }
@@ -364,7 +342,6 @@ static void serial_omap_start_tx(struct uart_port *port)
 
 	pm_runtime_get_sync(up->dev);
 	serial_omap_enable_ier_thri(up);
-	serial_omap_set_noidle(up);
 	pm_runtime_mark_last_busy(up->dev);
 	pm_runtime_put_autosuspend(up->dev);
 }
@@ -1505,6 +1482,9 @@ static int serial_omap_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, up);
 	pm_runtime_enable(&pdev->dev);
+	if (omap_up_info->autosuspend_timeout == 0)
+		omap_up_info->autosuspend_timeout = -1;
+	device_init_wakeup(up->dev, true);
 	pm_runtime_use_autosuspend(&pdev->dev);
 	pm_runtime_set_autosuspend_delay(&pdev->dev,
 			omap_up_info->autosuspend_timeout);
@@ -1614,13 +1594,9 @@ static void serial_omap_restore_context(struct uart_omap_port *up)
 static int serial_omap_runtime_suspend(struct device *dev)
 {
 	struct uart_omap_port *up = dev_get_drvdata(dev);
-	struct omap_uart_port_info *pdata = dev->platform_data;
 
 	if (!up)
 		return -EINVAL;
-
-	if (!pdata)
-		return 0;
 
 	up->context_loss_cnt = serial_omap_get_context_loss_count(up);
 
@@ -1649,7 +1625,7 @@ static int serial_omap_runtime_resume(struct device *dev)
 	int loss_cnt = serial_omap_get_context_loss_count(up);
 
 	if (loss_cnt < 0) {
-		dev_err(dev, "serial_omap_get_context_loss_count failed : %d\n",
+		dev_dbg(dev, "serial_omap_get_context_loss_count failed : %d\n",
 			loss_cnt);
 		serial_omap_restore_context(up);
 	} else if (up->context_loss_cnt != loss_cnt) {
