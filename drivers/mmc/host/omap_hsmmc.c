@@ -53,6 +53,7 @@
 #define OMAP_HSMMC_RSP54	0x0118
 #define OMAP_HSMMC_RSP76	0x011C
 #define OMAP_HSMMC_DATA		0x0120
+#define OMAP_HSMMC_PSTATE	0x0124
 #define OMAP_HSMMC_HCTL		0x0128
 #define OMAP_HSMMC_SYSCTL	0x012C
 #define OMAP_HSMMC_STAT		0x0130
@@ -186,6 +187,7 @@ struct omap_hsmmc_host {
 	struct omap_hsmmc_next	next_data;
 	bool			sdio_irq_en;
 	bool			active_pinmux;
+	int			pm_suspend_ct;
 	struct	omap_mmc_platform_data	*pdata;
 };
 
@@ -1711,6 +1713,23 @@ static int omap_hsmmc_regs_show(struct seq_file *s, void *data)
 {
 	struct mmc_host *mmc = s->private;
 	struct omap_hsmmc_host *host = mmc_priv(mmc);
+	unsigned long flags;
+
+	if (mmc_slot(host).sdio_irq) {
+		spin_lock_irqsave(&host->irq_lock, flags);
+		seq_printf(s, "\n");
+		seq_printf(s, "pinmux config\t%s\n", host->active_pinmux ?
+			   "sdio" : "gpio");
+		seq_printf(s, "sdio irq\t%s\n", host->sdio_irq_en ? "enabled" :
+			   "disabled");
+		if (!host->active_pinmux) {
+			seq_printf(s, "sdio irq pin\t%s\n",
+				   gpio_get_value(mmc_slot(host).gpio_cirq) ?
+				   "high" : "low");
+		}
+		seq_printf(s, "pm suspends\t%d\n", host->pm_suspend_ct);
+		spin_unlock_irqrestore(&host->irq_lock, flags);
+	}
 
 	if (host->suspended) {
 		seq_printf(s, "host suspended, can't read registers\n");
@@ -1718,9 +1737,11 @@ static int omap_hsmmc_regs_show(struct seq_file *s, void *data)
 	}
 
 	pm_runtime_get_sync(host->dev);
-
+	seq_printf(s, "\nregs:\n");
 	seq_printf(s, "CON:\t\t0x%08x\n",
 			OMAP_HSMMC_READ(host->base, CON));
+	seq_printf(s, "PSTATE:\t\t0x%08x\n",
+		   OMAP_HSMMC_READ(host->base, PSTATE));
 	seq_printf(s, "HCTL:\t\t0x%08x\n",
 			OMAP_HSMMC_READ(host->base, HCTL));
 	seq_printf(s, "SYSCTL:\t\t0x%08x\n",
@@ -1901,6 +1922,7 @@ static int omap_hsmmc_probe(struct platform_device *pdev)
 	host->slot_id	= 0;
 	host->sdio_irq_en = false;
 	host->active_pinmux = true;
+	host->pm_suspend_ct = 0;
 	host->mapbase	= res->start + pdata->reg_offset;
 	host->base	= ioremap(host->mapbase, SZ_4K);
 	host->power_mode = MMC_POWER_OFF;
@@ -2308,6 +2330,8 @@ static int omap_hsmmc_runtime_suspend(struct device *dev)
 	if (mmc->caps & MMC_CAP_SDIO_IRQ) {
 		spin_lock_irqsave(&host->irq_lock, flags);
 		host->active_pinmux = false;
+		host->pm_suspend_ct++;
+
 		OMAP_HSMMC_WRITE(host->base, ISE, 0);
 		OMAP_HSMMC_WRITE(host->base, IE, 0);
 		OMAP_HSMMC_WRITE(host->base, STAT, STAT_CLEAR);
