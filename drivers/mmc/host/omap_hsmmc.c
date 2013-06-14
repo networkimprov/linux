@@ -475,6 +475,39 @@ static void omap_hsmmc_gpio_free(struct omap_mmc_platform_data *pdata)
 		gpio_free(pdata->slots[0].gpio_cirq);
 }
 
+static int omap_hsmmc_pinctrl_init(struct omap_hsmmc_host *host)
+{
+	struct device *dev = mmc_dev(host->mmc);
+	int res, found = 0;
+
+	if (!dev->pins)
+		return 0;
+
+	/*
+	 * The active and idle pins are optional, and used for
+	 * SDIO interrupt, or eMMC pulls for off-idle.
+	 */
+	if (IS_ERR(dev->pins->active_state) ||
+	    IS_ERR(dev->pins->idle_state)) {
+		return 0;
+	}
+
+	/* Let's make sure the idle and active states work */
+	res = pinctrl_pm_select_idle_state(dev);
+	if (res < 0)
+		return -ENODEV;
+	found++;
+
+	res = pinctrl_pm_select_active_state(dev);
+	if (res < 0)
+		return -ENODEV;
+	found++;
+
+	dev_info(mmc_dev(dev), "pins configured for dynamic remuxing\n");
+
+	return found;
+}
+
 /*
  * Start clock to the card
  */
@@ -1868,7 +1901,6 @@ static int omap_hsmmc_probe(struct platform_device *pdev)
 	const struct of_device_id *match;
 	dma_cap_mask_t mask;
 	unsigned tx_req, rx_req;
-	struct pinctrl *pinctrl;
 
 	match = of_match_device(of_match_ptr(omap_mmc_of_match), &pdev->dev);
 	if (match) {
@@ -2101,21 +2133,19 @@ static int omap_hsmmc_probe(struct platform_device *pdev)
 
 	omap_hsmmc_disable_irq(host);
 
-	pinctrl = devm_pinctrl_get_select_default(&pdev->dev);
-	if (IS_ERR(pinctrl))
-		dev_warn(&pdev->dev,
-			"pins are not configured from the driver\n");
-
 	/*
-	 * For now, only support SDIO interrupt if we are doing
-	 * muxing of dat1 when booted with DT. This is because the
+	 * For now, only support SDIO interrupt if we are doing dynamic
+	 * remuxing of dat1 when booted with DT. This is because the
 	 * supposedly the wake-up events for CTPL don't work from deeper
 	 * idle states. And we don't want to add new legacy mux platform
 	 * init code callbacks any longer as we are moving to DT based
 	 * booting anyways.
 	 */
 	if (match) {
-		if (!IS_ERR(pinctrl) && mmc_slot(host).sdio_irq)
+		ret = omap_hsmmc_pinctrl_init(host);
+		if (ret < 0)
+			goto err_pinctrl_state;
+		else if (ret > 1 && mmc_slot(host).sdio_irq)
 			mmc->caps |= MMC_CAP_SDIO_IRQ;
 	}
 
@@ -2143,6 +2173,7 @@ static int omap_hsmmc_probe(struct platform_device *pdev)
 
 err_slot_name:
 	mmc_remove_host(mmc);
+err_pinctrl_state:
 	if ((mmc_slot(host).sdio_irq))
 		free_irq(mmc_slot(host).sdio_irq, host);
 err_irq_sdio:
@@ -2337,6 +2368,10 @@ static int omap_hsmmc_runtime_suspend(struct device *dev)
 		OMAP_HSMMC_WRITE(host->base, STAT, STAT_CLEAR);
 		spin_unlock_irqrestore(&host->irq_lock, flags);
 
+		ret = pinctrl_pm_select_idle_state(dev);
+		if (ret < 0)
+			dev_err(dev, "Unable to select idle pinmux\n");
+
 		if (mmc_slot(host).sdio_irq)
 			enable_irq(mmc_slot(host).sdio_irq);
 	}
@@ -2359,6 +2394,10 @@ static int omap_hsmmc_runtime_resume(struct device *dev)
 	if (mmc->caps & MMC_CAP_SDIO_IRQ) {
 		if (mmc_slot(host).sdio_irq)
 			disable_irq(mmc_slot(host).sdio_irq);
+
+		ret = pinctrl_pm_select_active_state(dev);
+		if (ret < 0)
+			dev_err(dev, "Unable to select active pinmux\n");
 
 		spin_lock_irqsave(&host->irq_lock, flags);
 		host->active_pinmux = true;
