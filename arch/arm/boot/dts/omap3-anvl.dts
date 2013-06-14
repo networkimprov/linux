@@ -87,27 +87,56 @@
 		>;
 	};
 
+	mmc3_active_pin: pinmux_mmc3_active_pin {
+		pinctrl-single,pins = <
+			0x5b6 0x11a	/* etk_d5.sdmmc3_dat1 INPUT_PULLUP | MODE2 */
+		>;
+	};
+
+	mmc3_idle_pin: pinmux_mmc3_idle_pin {
+		pinctrl-single,pins = <
+			0x5b6 0x4104	/* etk_d5.gpio19 WAKEUP | INPUT | MODE4 */
+		>;
+		gpios = <&gpio1 19 0>;	/* gpio19 */
+	};
+
 	mmc3_pins: pinmux_mmc3_pins {
 		pinctrl-single,pins = <
-			0x15a 0x104	/* mcbsp4_fsx.gpio_155 INPUT | MODE4 WLAN_PDN */
+			0x15a 0xf04	/* mcbsp4_fsx.gpio_155 OFF_OUTPUT_HIGH | MODE4 WLAN_PDN */
 			0x1a4 0x104	/* mcspi1_cs3.gpio_177 INPUT | MODE4 WLAN_SLEEP */
-			0x156 0x104	/* mcbsp4_dr.gpio_153 INPUT | MODE4 WLAN_WKUP */
-			0x1a2 0x114	/* mcspi1_cs2.gpio_176 INPUT | MODE4 WLAN_EEPROM_WP */
-			0x5a8 0x11a	/* etk_clk.sdmmc3_clk INPUT_PULLUP | MODE2 */
-			0x5aa 0x11a	/* etk_ctl.sdmmc3_cmd INPUT_PULLUP | MODE2 */
-			0x5b2 0x11a	/* etk_d3.sdmmc3_dat3 INPUT_PULLUP | MODE2 */
-			0x5b4 0x11a	/* etk_d4.sdmmc3_dat0 INPUT_PULLUP | MODE2 */
-			0x5b6 0x11a	/* etk_d5.sdmmc3_dat1 INPUT_PULLUP | MODE2 */
-			0x5b8 0x11a	/* etk_d6.sdmmc3_dat2 INPUT_PULLUP | MODE2 */
+			0x156 0x4	/* mcbsp4_dr.gpio_153 MODE4 WLAN_WKUP */
+			0x1a2 0x4	/* mcspi1_cs2.gpio_176 MODE4 WLAN_EEPROM_WP */
+			0x5a8 0x331a	/* etk_clk.sdmmc3_clk OFF_PULLUP | INPUT_PULLUP | MODE2 */
+			0x5aa 0x331a	/* etk_ctl.sdmmc3_cmd OFF_PULLUP | INPUT_PULLUP | MODE2 */
+			0x5b2 0x331a	/* etk_d3.sdmmc3_dat3 OFF_PULLUP | INPUT_PULLUP | MODE2 */
+			0x5b4 0x331a	/* etk_d4.sdmmc3_dat0 OFF_PULLUP | INPUT_PULLUP | MODE2 */
+			0x5b8 0x331a	/* etk_d6.sdmmc3_dat2 OFF_PULLUP | INPUT_PULLUP | MODE2 */
 		>;
+	};
+
+	uart1_pins: pinmux_uart1_pins {
+		pinctrl-single,pins = <
+			0x150 0x108	/* uart1_cts.uart1_cts INPUT_PULLDOWN | MODE0 */
+			0x14e 0x10	/* uart1_rts.uart1_rts OUTPUT | MODE0 */
+			0x152 0x4100	/* uart1_rx.uart1_rx WAKEUP | INPUT | MODE0 */
+			0x14c 0x0	/* uart1_tx.uart1_tx OUTPUT | MODE0 */
+		>;
+		interrupts = <72>;
+	};
+
+	uart3_pins: pinmux_uart3_pins {
+		pinctrl-single,pins = <
+			0x16e 0x4100	/* uart3_rx_irrx.uart3_rx_irrx WAKEUP | INPUT | MODE0 */
+			0x170 0x0	/* uart3_tx_irtx.uart3_tx_irtx OUTPUT | MODE0 */
+		>;
+		interrupts = <74>;
 	};
 };
 
 &omap3_pmx_wkup {
-	/* REVISIT: This should have OFF wake enabled once we have handling for it */
 	wlan_host_wkup: pinmux_wlan_host_wkup_pins {
 		pinctrl-single,pins = <
-			0x1a 0x11c	/* sys_clkout1.gpio_10 INPUT_PULLUP | MODE4 WLAN_HOST_WKUP */
+			0x1a 0x411c	/* sys_clkout1.gpio_10 WAKEUP |INPUT_PULLUP | MODE4 WLAN_HOST_WKUP */
 		>;
 	};
 };
@@ -148,15 +177,32 @@
 	non-removable;
 	bus-width = <4>;
 	cap-power-off-card;
-	pinctrl-names = "default";
+	ti,cirq-gpio = <&gpio1 19 0>;	/* gpio19 */
+	pinctrl-names = "default", "active", "idle";
 	pinctrl-0 = <&mmc3_pins &wlan_host_wkup>;
+	pinctrl-1 = <&mmc3_active_pin>;
+	pinctrl-2 = <&mmc3_idle_pin>;
+};
+
+&uart1 {
+       pinctrl-names = "default";
+       pinctrl-0 = <&uart1_pins>;
 };
 
 &uart2 {
 	status = "disabled";
 };
 
+&uart3 {
+       pinctrl-names = "default";
+       pinctrl-0 = <&uart3_pins>;
+};
+
 &uart4 {
+	status = "disabled";
+};
+
+&usbhshost {
 	status = "disabled";
 };
 
