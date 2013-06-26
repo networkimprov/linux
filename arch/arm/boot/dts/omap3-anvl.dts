@@ -155,6 +155,34 @@
 
 &i2c2 {
 	clock-frequency = <400000>;
+
+	pca9632: pca9632 {
+		compatible = "nxp,pca9632", "nxp,pca963x";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reg = <0x62>;
+
+		red@0 {
+			label = "red";
+			reg = <0>;
+			linux,default-trigger = "none";
+		};
+		green@1 {
+			label = "green";
+			reg = <1>;
+			linux,default-trigger = "none";
+		};
+		blue@2 {
+			label = "blue";
+			reg = <2>;
+			linux,default-trigger = "none";
+		};
+		unused@3 {
+			label = "unused";
+			reg = <3>;
+			linux,default-trigger = "none";
+		};
+	};
 };
 
 &mmc1 {
