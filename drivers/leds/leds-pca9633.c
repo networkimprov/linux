@@ -94,7 +94,7 @@ static void pca9633_led_set(struct led_classdev *led_cdev,
 	schedule_work(&pca9633->work);
 }
 
-#ifdef CONFIG_OF
+#if IS_ENABLED(CONFIG_OF)
 static struct pca9633_platform_data *
 pca9633_dt_init(struct i2c_client *client)
 {
@@ -133,6 +133,12 @@ pca9633_dt_init(struct i2c_client *client)
 
 	pdata->leds.leds = pca9633_leds;
 	pdata->leds.num_leds = count;
+
+	/* default to open-drain unless totem pole (push-pull) is specified */
+	if (of_property_read_bool(np, "nxp,totem-pole"))
+		pdata->outdrv = PCA9633_TOTEM_POLE;
+	else
+		pdata->outdrv = PCA9633_OPEN_DRAIN;
 
 	return pdata;
 }
