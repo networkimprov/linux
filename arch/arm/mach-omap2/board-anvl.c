@@ -56,7 +56,7 @@
 static struct mtd_partition board_nand_partitions[] = {
 	/* All the partition sizes are listed in terms of NAND block size */
 	{
-		.name		= "X-Loader",
+		.name		= "MLO",
 		.offset		= 0,
 		.size		= 4 * NAND_BLOCK_SIZE,
 		.mask_flags	= MTD_WRITEABLE,	/* force read-only */
@@ -64,22 +64,32 @@ static struct mtd_partition board_nand_partitions[] = {
 	{
 		.name		= "U-Boot",
 		.offset		= MTDPART_OFS_APPEND,	/* Offset = 0x80000 */
-		.size		= 15 * NAND_BLOCK_SIZE,
+		.size		= 14 * NAND_BLOCK_SIZE,
 		.mask_flags	= MTD_WRITEABLE,	/* force read-only */
 	},
 	{
-		.name		= "U-Boot Env",
-		.offset		= MTDPART_OFS_APPEND,	/* Offset = 0x260000 */
+		.name		= "U-Boot Environment",
+		.offset		= MTDPART_OFS_APPEND,	/* Offset = 0x240000 */
 		.size		= 1 * NAND_BLOCK_SIZE,
 	},
 	{
 		.name		= "Kernel",
-		.offset		= MTDPART_OFS_APPEND,	/* Offset = 0x280000 */
-		.size		= 32 * NAND_BLOCK_SIZE,
+		.offset		= MTDPART_OFS_APPEND,	/* Offset = 0x260000 */
+		.size		= 48 * NAND_BLOCK_SIZE,
+	},
+	{
+		.name		= "Initrd",
+		.offset		= MTDPART_OFS_APPEND,	/* Offset = 0x860000 */
+		.size		= 128 * NAND_BLOCK_SIZE,
+	},
+	{
+		.name		= "MTD Oops",
+		.offset		= MTDPART_OFS_APPEND,	/* Offset = 0x1860000 */
+		.size		= 8 * NAND_BLOCK_SIZE,
 	},
 	{
 		.name		= "File System",
-		.offset		= MTDPART_OFS_APPEND,	/* Offset = 0x680000 */
+		.offset		= MTDPART_OFS_APPEND,	/* Offset = 0x1960000 */
 		.size		= MTDPART_SIZ_FULL,
 	},
 };
