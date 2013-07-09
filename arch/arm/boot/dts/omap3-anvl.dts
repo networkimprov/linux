@@ -224,6 +224,13 @@
 			};
 		};
 	};
+
+	bq24190: bq24190@6b {
+		compatible = "ti,bq24190";
+		reg = <0x6b>;
+		interrupts = <24 IRQ_TYPE_EDGE_RISING>;
+		interrupt-parent = <&gpio5>;
+	};
 };
 
 /include/ "twl4030.dtsi"
