@@ -48,7 +48,7 @@ static inline void omap2_pmic_init(const char *pmic_type,
 static inline void omap3_pmic_init(const char *pmic_type,
 				   struct twl4030_platform_data *pmic_data)
 {
-	omap_pmic_init(1, 2600, pmic_type, 7 + OMAP_INTC_START, pmic_data);
+	omap_pmic_init(1, 400, pmic_type, 7 + OMAP_INTC_START, pmic_data);
 }
 
 void omap4_pmic_init(const char *pmic_type,
