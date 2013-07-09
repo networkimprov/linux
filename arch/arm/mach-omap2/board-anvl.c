@@ -34,6 +34,7 @@
 #include <linux/regulator/machine.h>
 #include <linux/regulator/fixed.h>
 #include <linux/i2c/twl.h>
+#include <linux/power/bq24190_charger.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -144,6 +145,17 @@ static struct twl4030_platform_data board_twldata = {
 	.vmmc1		= &board_vmmc1,
 };
 
+struct bq24190_platform_data board_i2c1_bq24190_pdata = {
+	.gpio_int = 152,
+};
+
+static struct i2c_board_info __initdata board_i2c1_devices[] = {
+	{
+		I2C_BOARD_INFO("bq24190", 0x6b),
+		.platform_data = &board_i2c1_bq24190_pdata,
+	},
+};
+
 static int __init board_i2c_init(void)
 {
 	omap3_pmic_get_config(&board_twldata,
@@ -152,6 +164,9 @@ static int __init board_i2c_init(void)
 			      TWL_COMMON_PDATA_AUDIO, 0);
 
 	omap3_pmic_init("twl4030", &board_twldata);
+
+	i2c_register_board_info(1, board_i2c1_devices,
+				ARRAY_SIZE(board_i2c1_devices));
 
 	return 0;
 }
