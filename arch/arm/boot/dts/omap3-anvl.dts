@@ -211,7 +211,7 @@
 };
 
 &i2c1 {
-	clock-frequency = <2600000>;
+	clock-frequency = <400000>;
 
 	twl: twl@48 {
 		reg = <0x48>;
