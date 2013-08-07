@@ -7,7 +7,7 @@
  */
 /dts-v1/;
 
-/include/ "omap36xx.dtsi"
+#include "omap36xx.dtsi"
 
 / {
 	model = "Nework Improv ANVL";
