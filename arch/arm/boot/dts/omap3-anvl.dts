@@ -243,6 +243,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 		reg = <0x62>;
+		nxp,hw-blink;
 
 		red@0 {
 			label = "red";
