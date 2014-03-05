@@ -197,6 +197,8 @@ struct omap_hsmmc_host {
 #define HSMMC_SDIO_IRQ_ENABLED	(1 << 0)        /* SDIO irq enabled */
 #define HSMMC_SWAKEUP_QUIRK	(1 << 1)
 	struct omap_hsmmc_next	next_data;
+	struct pinctrl		*pinctrl;
+	struct pinctrl_state	*fixed, *active, *idle;
 	struct	omap_mmc_platform_data	*pdata;
 };
 
@@ -451,6 +453,70 @@ static void omap_hsmmc_gpio_free(struct omap_mmc_platform_data *pdata)
 		gpio_free(pdata->slots[0].gpio_wp);
 	if (gpio_is_valid(pdata->slots[0].switch_pin))
 		gpio_free(pdata->slots[0].switch_pin);
+}
+
+static int omap_hsmmc_pin_init(struct omap_hsmmc_host *host)
+{
+	struct pinctrl *_pinctrl;
+	int ret;
+
+	_pinctrl = devm_pinctrl_get(host->dev);
+	if (IS_ERR(_pinctrl)) {
+		/* okay, if the bootloader set it up right */
+		dev_warn(host->dev, "no pinctrl handle\n");
+		return 0;
+	}
+
+	host->fixed = pinctrl_lookup_state(_pinctrl,
+					   PINCTRL_STATE_DEFAULT);
+	if (IS_ERR(host->fixed)) {
+		dev_info(host->dev,
+			 "pins are not configured from the driver\n");
+		host->fixed = NULL;
+		devm_pinctrl_put(_pinctrl);
+		return 0;
+	}
+
+	ret = pinctrl_select_state(_pinctrl, host->fixed);
+	if (ret < 0) {
+		dev_warn(host->dev, "fixed pinctrl state failed %d\n", ret);
+		goto err;
+	}
+
+	/* For most cases we don't have wake-ups, and exit after this */
+	host->active = pinctrl_lookup_state(_pinctrl, "active");
+	if (IS_ERR(host->active)) {
+		ret = PTR_ERR(host->active);
+		host->active = NULL;
+		goto done;
+	}
+
+	host->idle = pinctrl_lookup_state(_pinctrl, PINCTRL_STATE_IDLE);
+	if (IS_ERR(host->idle)) {
+		ret = PTR_ERR(host->idle);
+		host->idle = NULL;
+		goto err;
+	}
+
+	/* Let's make sure the active and idle states work */
+	ret = pinctrl_select_state(_pinctrl, host->idle);
+	if (ret < 0)
+		goto err;
+
+	ret = pinctrl_select_state(_pinctrl, host->active);
+	if (ret < 0)
+		goto err;
+
+	dev_info(mmc_dev(host->mmc), "pins configured for wake-up events\n");
+
+done:
+	host->pinctrl = _pinctrl;
+	return 0;
+
+err:
+	dev_err(mmc_dev(host->mmc), "pins configuration error: %i\n", ret);
+	devm_pinctrl_put(_pinctrl);
+	return ret;
 }
 
 /*
@@ -1686,8 +1752,14 @@ static int omap_hscmm_configure_wake_irq(struct omap_hsmmc_host *host)
 	 * Some omaps don't have wake-up path from deeper idle states
 	 * and need to remux SDIO DAT1 to GPIO for wake-up from idle.
 	 */
-	if (host->pdata->controller_flags & OMAP_HSMMC_SWAKEUP_MISSING)
+	if (host->pdata->controller_flags & OMAP_HSMMC_SWAKEUP_MISSING) {
+		if (!host->idle) {
+			free_irq(host->wake_irq, host);
+			host->wake_irq = 0;
+			return -EINVAL;
+		}
 		host->flags |= HSMMC_SWAKEUP_QUIRK;
+	}
 
 	return 0;
 }
@@ -1902,7 +1974,6 @@ static int omap_hsmmc_probe(struct platform_device *pdev)
 	const struct of_device_id *match;
 	dma_cap_mask_t mask;
 	unsigned tx_req, rx_req;
-	struct pinctrl *pinctrl;
 
 	match = of_match_device(of_match_ptr(omap_mmc_of_match), &pdev->dev);
 	if (match) {
@@ -2119,10 +2190,9 @@ static int omap_hsmmc_probe(struct platform_device *pdev)
 
 	omap_hsmmc_disable_irq(host);
 
-	pinctrl = devm_pinctrl_get_select_default(&pdev->dev);
-	if (IS_ERR(pinctrl))
-		dev_warn(&pdev->dev,
-			"pins are not configured from the driver\n");
+	ret = omap_hsmmc_pin_init(host);
+	if (ret)
+		goto err_pinctrl_state;
 
 	/*
 	 * For now, only support SDIO interrupt if we have a separate
@@ -2162,7 +2232,10 @@ err_slot_name:
 	mmc_remove_host(mmc);
 	if (host->wake_irq)
 		free_irq(host->wake_irq, host);
-	if (mmc_slot(host).card_detect_irq)
+	if (host->pinctrl)
+		devm_pinctrl_put(host->pinctrl);
+err_pinctrl_state:
+	if ((mmc_slot(host).card_detect_irq))
 		free_irq(mmc_slot(host).card_detect_irq, host);
 err_irq_cd:
 	if (host->use_reg)
@@ -2217,6 +2290,8 @@ static int omap_hsmmc_remove(struct platform_device *pdev)
 		dma_release_channel(host->tx_chan);
 	if (host->rx_chan)
 		dma_release_channel(host->rx_chan);
+	if (host->pinctrl)
+		devm_pinctrl_put(host->pinctrl);
 
 	pm_runtime_put_sync(host->dev);
 	pm_runtime_disable(host->dev);
@@ -2326,6 +2401,11 @@ static int omap_hsmmc_runtime_suspend(struct device *dev)
 		OMAP_HSMMC_WRITE(host->base, ISE, 0);
 		OMAP_HSMMC_WRITE(host->base, IE, 0);
 		OMAP_HSMMC_WRITE(host->base, STAT, STAT_CLEAR);
+		if (host->idle) {
+			ret = pinctrl_select_state(host->pinctrl, host->idle);
+			if (ret < 0)
+				dev_warn(mmc_dev(host->mmc), "Unable to select idle pinmux\n");
+		}
 		hsmmc_enable_wake_irq(host);
 	}
 
@@ -2343,6 +2423,11 @@ static int omap_hsmmc_runtime_resume(struct device *dev)
 
 	if (host->mmc->caps & MMC_CAP_SDIO_IRQ) {
 		hsmmc_disable_wake_irq(host);
+		if (host->active) {
+			ret = pinctrl_select_state(host->pinctrl, host->active);
+			if (ret < 0)
+				dev_warn(mmc_dev(host->mmc), "Unable to select active pinmux\n");
+		}
 		OMAP_HSMMC_WRITE(host->base, STAT, STAT_CLEAR);
 		OMAP_HSMMC_WRITE(host->base, ISE, CIRQ_EN);
 		OMAP_HSMMC_WRITE(host->base, IE, CIRQ_EN);
