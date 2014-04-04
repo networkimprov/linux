@@ -83,8 +83,7 @@
 
 	mmc2_pins: pinmux_mmc2_pins {
 		pinctrl-single,pins = <
-			/* dss_data5.gpio_75 eMMC reset */
-			OMAP3_CORE1_IOPAD(0x20e6, PIN_OFF_OUTPUT_HIGH | PIN_OUTPUT_PULLUP | MUX_MODE4)
+			OMAP3_CORE1_IOPAD(0x20e6, PIN_OFF_INPUT_PULLUP | MUX_MODE7)	/* dss_data5.gpio_75 */
 			OMAP3_CORE1_IOPAD(0x2158, PIN_INPUT_PULLUP | MUX_MODE0)		/* sdmmc2_clk.sdmmc2_clk */
 			OMAP3_CORE1_IOPAD(0x215a, PIN_INPUT_PULLUP | MUX_MODE0)		/* sdmmc2_cmd.sdmmc2_cmd */
 			OMAP3_CORE1_IOPAD(0x215c, PIN_INPUT | MUX_MODE0)		/* sdmmc2_dat0.sdmmc2_dat0 */
@@ -239,6 +238,10 @@
 			codec {
 			};
 		};
+
+		twl_power: power {
+			ti,use_poweroff;
+		};
 	};
 
 	bq24190: charger@6b {
@@ -249,7 +252,8 @@
 	};
 };
 
-/include/ "twl4030.dtsi"
+#include "twl4030.dtsi"
+#include "twl4030_omap3.dtsi"
 
 &i2c2 {
 	clock-frequency = <400000>;
