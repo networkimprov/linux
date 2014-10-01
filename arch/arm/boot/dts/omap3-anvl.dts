@@ -125,10 +125,10 @@
 
 	uart1_pins: pinmux_uart1_pins {
 		pinctrl-single,pins = <
-			OMAP3_CORE1_IOPAD(0x2180, PIN_INPUT_PULLDOWN | MUX_MODE0)	/* uart1_cts.uart1_cts */
-			OMAP3_CORE1_IOPAD(0x217e, PIN_OUTPUT | MUX_MODE0)		/* uart1_rts.uart1_rts */
-			OMAP3_CORE1_IOPAD(0x2182, PIN_INPUT | MUX_MODE0)		/* uart1_rx.uart1_rx */
-			OMAP3_CORE1_IOPAD(0x217c, PIN_OUTPUT | MUX_MODE0)		/* uart1_tx.uart1_tx */
+			OMAP3_CORE1_IOPAD(0x217c, PIN_OUTPUT | MUX_MODE0)	/* uart1_tx.uart1_tx */
+			OMAP3_CORE1_IOPAD(0x217e, PIN_OUTPUT | MUX_MODE0)	/* uart1_rts.uart1_rts */
+			OMAP3_CORE1_IOPAD(0x2180, PIN_INPUT_PULLUP | MUX_MODE0)	/* uart1_cts.uart1_cts */
+			OMAP3_CORE1_IOPAD(0x2182, PIN_INPUT_PULLUP | MUX_MODE0)	/* uart1_rx.uart1_rx */
 		>;
 	};
 
