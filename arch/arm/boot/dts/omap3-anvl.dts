@@ -24,20 +24,16 @@
 		reg = <0x80000000 0x20000000>;	/* 512 MB */
 	};
 
-	fixed_1v8_io: fixed_1v8_io {
-		compatible = "regulator-fixed";
-		regulator-name = "1v8_io";
-		regulator-min-microvolt = <1800000>;
-		regulator-max-microvolt = <1800000>;
-		regulator-boot-on;
-	};
-
+	/*
+	 * TPS73733QDRBRQ1 enabled automatically by TWL REGEN pin if
+	 * TWL is powered, or if there is power to VBUS
+	 */
 	fixed_3v3_sys: fixed_3v3_sys {
 		compatible = "regulator-fixed";
 		regulator-name = "3v3_sys";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
-		regulator-boot-on;
+		regulator-always-on;
 	};
 
 	fixed_wlan: fixed_wlan {
@@ -302,7 +298,7 @@
 };
 
 &mmc2 {
-	vmmc-supply = <&fixed_1v8_io>;
+	vmmc-supply = <&vio>;
 	ti,non-removable;
 	bus-width = <8>;
 	pinctrl-0 = <&mmc2_pins>;
