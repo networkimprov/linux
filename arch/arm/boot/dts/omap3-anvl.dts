@@ -162,15 +162,16 @@
 };
 
 &gpmc {
-	ranges = <0 0 0x00000000 0x20000000>;
+	ranges = <0 0 0x00000000 0x1000000>;
 
 	nand@0,0 {
 		linux,mtd-name = "micron,mt29c4g96maz";
 
-		reg = <0 0 0>;
+		reg = <0 0 4>;
 		nand-bus-width = <16>;
 		ti,nand-ecc-opt = "bch8";
 
+		gpmc,device-width = <2>;
 		gpmc,sync-clk-ps = <0>;
 		gpmc,cs-on-ns = <0>;
 		gpmc,cs-rd-off-ns = <44>;
