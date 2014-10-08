@@ -342,3 +342,8 @@
 	mode = <3>;
 	power = <250>;
 };
+
+&vio {
+	regulator-min-microvolt = <1800000>;
+	regulator-max-microvolt = <1800000>;
+};
