@@ -42,14 +42,14 @@
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 		enable-active-high;
-		gpio = <&gpio5 27 0>;	/* gpio155 */
+		gpio = <&twl_gpio 0 GPIO_ACTIVE_HIGH>;	/* twl_gpio0 */
 	};
 
 	leds {
 		compatible = "gpio-leds";
 		heartbeat {
 			label = "anvl::cpu0";
-			gpios = <&gpio6 15 0>;	/* gpio175 */
+			gpios = <&gpio1 14 GPIO_ACTIVE_HIGH>;	/* gpio14 */
 			linux,default-trigger = "cpu0";
 		};
 	};
@@ -79,7 +79,6 @@
 
 	mmc2_pins: pinmux_mmc2_pins {
 		pinctrl-single,pins = <
-			OMAP3_CORE1_IOPAD(0x20e6, PIN_INPUT_PULLUP | MUX_MODE7)		/* really dss_data5.gpio_75 */
 			OMAP3_CORE1_IOPAD(0x2158, PIN_INPUT_PULLUP | MUX_MODE0)		/* sdmmc2_clk.sdmmc2_clk */
 			OMAP3_CORE1_IOPAD(0x215a, PIN_INPUT_PULLUP | MUX_MODE0)		/* sdmmc2_cmd.sdmmc2_cmd */
 			OMAP3_CORE1_IOPAD(0x215c, PIN_INPUT | MUX_MODE0)		/* sdmmc2_dat0.sdmmc2_dat0 */
@@ -95,7 +94,6 @@
 
 	mmc3_pins: pinmux_mmc3_pins {
 		pinctrl-single,pins = <
-			OMAP3_CORE1_IOPAD(0x218a, PIN_INPUT_PULLUP | MUX_MODE7)		/* really mcbsp4_fsx.gpio_155 WLAN_PDN */
 			OMAP3_CORE1_IOPAD(0x21d4, PIN_INPUT | MUX_MODE4)		/* mcspi1_cs3.gpio_177 WLAN_SLEEP */
 			OMAP3_CORE1_IOPAD(0x2186, MUX_MODE4)				/* mcbsp4_dr.gpio_153 WLAN_WKUP */
 			OMAP3_CORE1_IOPAD(0x21d2, MUX_MODE4)				/* mcspi1_cs2.gpio_176 WLAN_EEPROM_WP */
@@ -222,8 +220,7 @@
 };
 
 &i2c1 {
-	/* The max rate for bq24190 is 400 KHz */
-	clock-frequency = <400000>;
+	clock-frequency = <2600000>;
 
 	twl: twl@48 {
 		reg = <0x48>;
@@ -241,6 +238,10 @@
 			ti,use_poweroff;
 		};
 	};
+};
+
+&i2c2 {
+	clock-frequency = <400000>;
 
 	bq24190: charger@6b {
 		reg = <0x6b>;
