@@ -34,6 +34,7 @@
 #include <linux/power_supply.h>
 #include <linux/idr.h>
 #include <linux/i2c.h>
+#include <linux/of_device.h>
 #include <linux/slab.h>
 #include <asm/unaligned.h>
 
@@ -951,9 +952,26 @@ static const struct i2c_device_id bq27x00_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, bq27x00_id);
 
+#ifdef CONFIG_OF
+static const struct of_device_id bq27x00_of_match[] = {
+	{ .compatible = "ti,bq27200", },
+	{ .compatible = "ti,bq27500", },
+	{ .compatible = "ti,bq27425", },
+	{ .compatible = "ti,bq27742", },
+	{ .compatible = "ti,bq27518", },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, bq27x00_of_match);
+#else
+static const struct of_device_id bq27x00_of_match[] = {
+	{ },
+};
+#endif
+
 static struct i2c_driver bq27x00_battery_driver = {
 	.driver = {
 		.name = "bq27x00-battery",
+		.of_match_table = of_match_ptr(bq27x00_of_match),
 	},
 	.probe = bq27x00_battery_probe,
 	.remove = bq27x00_battery_remove,
