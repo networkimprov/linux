@@ -275,6 +275,11 @@
 		};
 	};
 
+	bq27425: charger@55 {
+		reg = <0x55>;
+		compatible = "ti,bq27425";
+	};
+
 	bq24190: charger@6b {
 		reg = <0x6b>;
 		compatible = "ti,bq24190";
