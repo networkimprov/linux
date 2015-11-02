@@ -450,7 +450,7 @@
 		mmc3: mmc@480ad000 {
 			compatible = "ti,omap3-hsmmc";
 			reg = <0x480ad000 0x200>;
-			interrupts = <94>;
+			interrupts-extended = <&intc 94>;
 			ti,hwmods = "mmc3";
 			dmas = <&sdma 77>, <&sdma 78>;
 			dma-names = "tx", "rx";
