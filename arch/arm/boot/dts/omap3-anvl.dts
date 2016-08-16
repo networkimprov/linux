@@ -252,6 +252,13 @@
 #include "twl4030.dtsi"
 #include "twl4030_omap3.dtsi"
 
+/* Used by PCA9632 LED controller */
+&vaux2 {
+	regulator-min-microvolt = <2500000>;
+	regulator-max-microvolt = <2500000>;
+	regulator-always-on;
+};
+
 &i2c2 {
 	clock-frequency = <400000>;
 
