@@ -337,6 +337,7 @@
 	non-removable;
 	bus-width = <4>;
 	cap-power-off-card;
+	keep-power-in-suspend;
 	ti,cirq-gpio = <&gpio1 19 0>;	/* gpio19 */
 	pinctrl-0 = <&mmc3_pins &mmc3_core2_pins &wlan_host_wkup>;
 	pinctrl-names = "default";
