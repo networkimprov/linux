@@ -69,6 +69,12 @@
 };
 
 &omap3_pmx_core {
+	bq24190_irq_pin: pinmux_bq24190_irq_pin {
+		pinctrl-single,pins = <
+			OMAP3_CORE1_IOPAD(0x2184, PIN_INPUT_PULLUP | MUX_MODE4)		/* mcbsp4_clkx.gpio_152 */
+		>;
+	};
+
 	mmc1_pins: pinmux_mmc1_pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x2144, PIN_OUTPUT_PULLUP | MUX_MODE0)	/* sdmmc1_clk.sdmmc1_clk */
@@ -299,6 +305,8 @@
 	bq24190: charger@6b {
 		reg = <0x6b>;
 		compatible = "ti,bq24190";
+		pinctrl-names = "default";
+		pinctrl-0 = <&bq24190_irq_pin>;
 		interrupt-parent = <&gpio5>;
 		interrupts = <24 IRQ_TYPE_LEVEL_LOW>;	/* gpio152 */
 	};
