@@ -986,6 +986,31 @@ static int bq27xxx_battery_get_property(struct power_supply *psy,
 	return ret;
 }
 
+static int bq27xxx_battery_set_property(struct power_supply *psy,
+					enum power_supply_property psp,
+					const union power_supply_propval *val)
+{
+	struct bq27xxx_device_info *di = power_supply_get_drvdata(psy);
+
+	if (psp != POWER_SUPPLY_PROP_UPDATE_INTERVAL)
+		return -EINVAL;
+
+	poll_interval = val->intval / 1000;
+	cancel_delayed_work_sync(&di->work);
+	schedule_delayed_work(&di->work, 0);
+
+	return 0;
+}
+
+static int bq27xxx_property_is_writeable(struct power_supply *psy,
+					 enum power_supply_property psp)
+{
+	if (psp == POWER_SUPPLY_PROP_UPDATE_INTERVAL)
+		return 1;
+
+	return 0;
+}
+
 static void bq27xxx_external_power_changed(struct power_supply *psy)
 {
 	struct bq27xxx_device_info *di = power_supply_get_drvdata(psy);
@@ -1012,6 +1037,8 @@ int bq27xxx_battery_setup(struct bq27xxx_device_info *di)
 	psy_desc->properties = bq27xxx_battery_props[di->chip].props;
 	psy_desc->num_properties = bq27xxx_battery_props[di->chip].size;
 	psy_desc->get_property = bq27xxx_battery_get_property;
+	psy_desc->set_property = bq27xxx_battery_set_property;
+	psy_desc->property_is_writeable = bq27xxx_property_is_writeable;
 	psy_desc->external_power_changed = bq27xxx_external_power_changed;
 
 	di->bat = power_supply_register_no_ws(di->dev, psy_desc, &psy_cfg);
