@@ -316,6 +316,7 @@
 		pinctrl-0 = <&bq24190_irq_pin>;
 		interrupt-parent = <&gpio5>;
 		interrupts = <24 IRQ_TYPE_LEVEL_LOW>;	/* gpio152 */
+		gpio-otg = <&twl_gpio 6 GPIO_ACTIVE_HIGH>;	/* twl_gpio6 */
 	};
 };
 
