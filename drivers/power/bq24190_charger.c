@@ -17,6 +17,7 @@
 #include <linux/power_supply.h>
 #include <linux/gpio.h>
 #include <linux/i2c.h>
+#include <linux/spinlock.h>
 
 #include <linux/power/bq24190_charger.h>
 
@@ -144,10 +145,7 @@
  * so the first read after a fault returns the latched value and subsequent
  * reads return the current value.  In order to return the fault status
  * to the user, have the interrupt handler save the reg's value and retrieve
- * it in the appropriate health/status routine.  Each routine has its own
- * flag indicating whether it should use the value stored by the last run
- * of the interrupt handler or do an actual reg read.  That way each routine
- * can report back whatever fault may have occured.
+ * it in the appropriate health/status routine.
  */
 struct bq24190_dev_info {
 	struct i2c_client		*client;
@@ -158,10 +156,7 @@ struct bq24190_dev_info {
 	kernel_ulong_t			model;
 	unsigned int			gpio_int;
 	unsigned int			irq;
-	struct mutex			f_reg_lock;
-	bool				charger_health_valid;
-	bool				battery_health_valid;
-	bool				battery_status_valid;
+	rwlock_t			f_reg_lock;
 	u8				f_reg;
 	u8				ss_reg;
 	u8				watchdog;
@@ -635,21 +630,12 @@ static int bq24190_charger_get_health(struct bq24190_dev_info *bdi,
 		union power_supply_propval *val)
 {
 	u8 v;
-	int health, ret;
+	unsigned long flags;
+	int health;
 
-	mutex_lock(&bdi->f_reg_lock);
-
-	if (bdi->charger_health_valid) {
-		v = bdi->f_reg;
-		bdi->charger_health_valid = false;
-		mutex_unlock(&bdi->f_reg_lock);
-	} else {
-		mutex_unlock(&bdi->f_reg_lock);
-
-		ret = bq24190_read(bdi, BQ24190_REG_F, &v);
-		if (ret < 0)
-			return ret;
-	}
+	read_lock_irqsave(&bdi->f_reg_lock, flags);
+	v = bdi->f_reg;
+	read_unlock_irqrestore(&bdi->f_reg_lock, flags);
 
 	if (v & BQ24190_REG_F_BOOST_FAULT_MASK) {
 		/*
@@ -933,21 +919,12 @@ static int bq24190_battery_get_status(struct bq24190_dev_info *bdi,
 		union power_supply_propval *val)
 {
 	u8 ss_reg, chrg_fault;
+	unsigned long flags;
 	int status, ret;
 
-	mutex_lock(&bdi->f_reg_lock);
-
-	if (bdi->battery_status_valid) {
-		chrg_fault = bdi->f_reg;
-		bdi->battery_status_valid = false;
-		mutex_unlock(&bdi->f_reg_lock);
-	} else {
-		mutex_unlock(&bdi->f_reg_lock);
-
-		ret = bq24190_read(bdi, BQ24190_REG_F, &chrg_fault);
-		if (ret < 0)
-			return ret;
-	}
+	read_lock_irqsave(&bdi->f_reg_lock, flags);
+	chrg_fault = bdi->f_reg;
+	read_unlock_irqrestore(&bdi->f_reg_lock, flags);
 
 	chrg_fault &= BQ24190_REG_F_CHRG_FAULT_MASK;
 	chrg_fault >>= BQ24190_REG_F_CHRG_FAULT_SHIFT;
@@ -995,21 +972,12 @@ static int bq24190_battery_get_health(struct bq24190_dev_info *bdi,
 		union power_supply_propval *val)
 {
 	u8 v;
-	int health, ret;
+	unsigned long flags;
+	int health;
 
-	mutex_lock(&bdi->f_reg_lock);
-
-	if (bdi->battery_health_valid) {
-		v = bdi->f_reg;
-		bdi->battery_health_valid = false;
-		mutex_unlock(&bdi->f_reg_lock);
-	} else {
-		mutex_unlock(&bdi->f_reg_lock);
-
-		ret = bq24190_read(bdi, BQ24190_REG_F, &v);
-		if (ret < 0)
-			return ret;
-	}
+	read_lock_irqsave(&bdi->f_reg_lock, flags);
+	v = bdi->f_reg;
+	read_unlock_irqrestore(&bdi->f_reg_lock, flags);
 
 	if (v & BQ24190_REG_F_BAT_FAULT_MASK) {
 		health = POWER_SUPPLY_HEALTH_OVERVOLTAGE;
@@ -1201,7 +1169,7 @@ static irqreturn_t bq24190_irq_handler_thread(int irq, void *data)
 	struct bq24190_dev_info *bdi = data;
 	bool alert_charger = false, alert_battery = false;
 	u8 ss_reg = 0, f_reg = 0;
-	int ret;
+	int i, ret;
 
 	pm_runtime_get_sync(bdi->dev);
 
@@ -1209,6 +1177,34 @@ static irqreturn_t bq24190_irq_handler_thread(int irq, void *data)
 	if (ret < 0) {
 		dev_err(bdi->dev, "Can't read SS reg: %d\n", ret);
 		goto out;
+	}
+ 
+	i = 0;
+	do {
+		ret = bq24190_read(bdi, BQ24190_REG_F, &f_reg);
+		if (ret < 0) {
+			dev_err(bdi->dev, "Can't read F reg: %d\n", ret);
+			goto out;
+		}
+	} while (f_reg && ++i < 2);
+
+	if (f_reg != bdi->f_reg) {
+ 		dev_info(bdi->dev, "Fault: boost %lu, charge %lu, battery %lu, ntc %lu\n",
+			(f_reg & BQ24190_REG_F_BOOST_FAULT_MASK) >> BQ24190_REG_F_BOOST_FAULT_SHIFT,
+			(f_reg & BQ24190_REG_F_CHRG_FAULT_MASK ) >> BQ24190_REG_F_CHRG_FAULT_SHIFT ,
+			(f_reg & BQ24190_REG_F_BAT_FAULT_MASK  ) >> BQ24190_REG_F_BAT_FAULT_SHIFT  ,
+			(f_reg & BQ24190_REG_F_NTC_FAULT_MASK  ) >> BQ24190_REG_F_NTC_FAULT_SHIFT  );
+		write_lock(&bdi->f_reg_lock);
+		if ((bdi->f_reg & battery_mask_f) != (f_reg & battery_mask_f)) {
+			/* copy battery-related bits to saved f_reg */
+			bdi->f_reg &= ~battery_mask_f;
+			bdi->f_reg |= battery_mask_f & f_reg;
+			alert_battery = true;
+		}
+		if (bdi->f_reg != f_reg)
+			alert_charger = true;
+		bdi->f_reg = f_reg;
+		write_unlock(&bdi->f_reg_lock);
 	}
 
 	if (ss_reg != bdi->ss_reg) {
@@ -1237,32 +1233,6 @@ static irqreturn_t bq24190_irq_handler_thread(int irq, void *data)
 			alert_charger = true;
 		bdi->ss_reg = ss_reg;
 	}
-
-	mutex_lock(&bdi->f_reg_lock);
-
-	ret = bq24190_read(bdi, BQ24190_REG_F, &f_reg);
-	if (ret < 0) {
-		mutex_unlock(&bdi->f_reg_lock);
-		dev_err(bdi->dev, "Can't read F reg: %d\n", ret);
-		goto out;
-	}
-
-	if (f_reg != bdi->f_reg) {
-		if ((bdi->f_reg & battery_mask_f) != (f_reg & battery_mask_f)) {
-			/* copy battery-related bits to saved f_reg */
-			bdi->f_reg &= ~battery_mask_f;
-			bdi->f_reg |= battery_mask_f & f_reg;
-			alert_battery = true;
-		}
-		if (bdi->f_reg != f_reg)
-			alert_charger = true;
-		bdi->f_reg = f_reg;
-		bdi->charger_health_valid = true;
-		bdi->battery_health_valid = true;
-		bdi->battery_status_valid = true;
-	}
-
-	mutex_unlock(&bdi->f_reg_lock);
 
 	if (alert_charger)
 		power_supply_changed(bdi->charger);
@@ -1380,12 +1350,9 @@ static int bq24190_probe(struct i2c_client *client,
 	bdi->dev = dev;
 	bdi->model = id->driver_data;
 	strncpy(bdi->model_name, id->name, I2C_NAME_SIZE);
-	mutex_init(&bdi->f_reg_lock);
+	rwlock_init(&bdi->f_reg_lock);
 	bdi->f_reg = 0;
 	bdi->ss_reg = BQ24190_REG_SS_VBUS_STAT_MASK;
-	bdi->charger_health_valid = false;
-	bdi->battery_health_valid = false;
-	bdi->battery_status_valid = false;
 
 	i2c_set_clientdata(client, bdi);
 
@@ -1498,9 +1465,6 @@ static int bq24190_pm_resume(struct device *dev)
 	/* we expect no contention with other threads here */
 	bdi->f_reg = 0;
 	bdi->ss_reg = BQ24190_REG_SS_VBUS_STAT_MASK;
-	bdi->charger_health_valid = false;
-	bdi->battery_health_valid = false;
-	bdi->battery_status_valid = false;
 
 	pm_runtime_get_sync(bdi->dev);
 	bq24190_register_reset(bdi);
