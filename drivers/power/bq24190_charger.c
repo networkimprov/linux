@@ -11,6 +11,7 @@
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
+#include <linux/of_gpio.h>
 #include <linux/of_irq.h>
 #include <linux/of_device.h>
 #include <linux/pm_runtime.h>
@@ -32,6 +33,7 @@
 #define BQ24190_REG_ISC_VINDPM_SHIFT		3
 #define BQ24190_REG_ISC_IINLIM_MASK		(BIT(2) | BIT(1) | BIT(0))
 #define BQ24190_REG_ISC_IINLIM_SHIFT		0
+#define BQ24190_REG_ISC_IINLIM_500MA		BIT(1)
 
 #define BQ24190_REG_POC		0x01 /* Power-On Configuration */
 #define BQ24190_REG_POC_RESET_MASK		BIT(7)
@@ -155,6 +157,7 @@ struct bq24190_dev_info {
 	char				model_name[I2C_NAME_SIZE];
 	kernel_ulong_t			model;
 	unsigned int			gpio_int;
+	struct gpio_desc		*gpio_otg;
 	unsigned int			irq;
 	rwlock_t			f_reg_lock;
 	u8				f_reg;
@@ -532,6 +535,32 @@ static int bq24190_register_reset(struct bq24190_dev_info *bdi)
 
 	if (!limit)
 		return -EIO;
+
+	return 0;
+}
+
+static int bq24190_update_otg(struct bq24190_dev_info *bdi, bool pg_state)
+{
+	if (IS_ERR(bdi->gpio_otg))
+		return 0;
+
+	if (pg_state) {
+		u8 inlim;
+		int ret = bq24190_write_mask(bdi, BQ24190_REG_ISC,
+				BQ24190_REG_ISC_EN_HIZ_MASK,
+				BQ24190_REG_ISC_EN_HIZ_SHIFT, 0);
+		if (ret < 0)
+			return ret;
+
+		ret = bq24190_read_mask(bdi, BQ24190_REG_ISC,
+				 BQ24190_REG_ISC_IINLIM_MASK,
+				 BQ24190_REG_ISC_IINLIM_SHIFT, &inlim);
+		if (ret < 0)
+			return ret;
+
+		pg_state = inlim == BQ24190_REG_ISC_IINLIM_500MA;
+	}
+	gpiod_set_value_cansleep(bdi->gpio_otg, pg_state);
 
 	return 0;
 }
@@ -1223,6 +1252,14 @@ static irqreturn_t bq24190_irq_handler_thread(int irq, void *data)
 					ret);
 		}
 
+		if ((bdi->ss_reg & BQ24190_REG_SS_VBUS_STAT_MASK) !=
+				(ss_reg & BQ24190_REG_SS_VBUS_STAT_MASK)) {
+			ret = bq24190_update_otg(bdi,
+				!!(ss_reg & BQ24190_REG_SS_PG_STAT_MASK));
+			if (ret < 0)
+				dev_err(bdi->dev, "Can't update OTG state\n");
+		}
+
 		if ((bdi->ss_reg & battery_mask_ss) != (ss_reg & battery_mask_ss)) {
 			/* copy battery-related bits to saved ss_reg */
 			bdi->ss_reg &= ~battery_mask_ss;
@@ -1287,6 +1324,9 @@ static int bq24190_setup_dt(struct bq24190_dev_info *bdi)
 	bdi->irq = irq_of_parse_and_map(bdi->dev->of_node, 0);
 	if (bdi->irq <= 0)
 		return -1;
+
+	bdi->gpio_otg = devm_gpiod_get_optional(&bdi->client->dev,
+						"gpio-otg", GPIOD_OUT_LOW);
 
 	return 0;
 }
