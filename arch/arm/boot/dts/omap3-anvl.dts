@@ -148,6 +148,16 @@
 			OMAP3_CORE1_IOPAD(0x21a0, PIN_OUTPUT | MUX_MODE0)		/* uart3_tx_irtx.uart3_tx_irtx */
 		>;
 	};
+
+	mcspi1_pins: pinmux_mcspi1_pins {
+		pinctrl-single,pins = <
+			OMAP3_CORE1_IOPAD(0x21c8, PIN_INPUT | MUX_MODE0)		/* mcspi1_clk.mcspi1_clk */
+			OMAP3_CORE1_IOPAD(0x21ca, PIN_OUTPUT | MUX_MODE0)		/* mcspi1_mosi.mcspi1_mosi */
+			OMAP3_CORE1_IOPAD(0x21cc, PIN_INPUT | MUX_MODE0)		/* mcspi1_miso.mcspi1_miso */
+			OMAP3_CORE1_IOPAD(0x21ce, PIN_OUTPUT | MUX_MODE0)		/* mcspi1_cs0.mcspi1_cs0 */
+			OMAP3_CORE1_IOPAD(0x21d0, PIN_OUTPUT | MUX_MODE0)		/* mcspi1_cs1.mcspi1_cs1 */
+		>;
+	};
 };
 
 &omap3_pmx_core2 {
@@ -360,6 +370,11 @@
 &uart3 {
 	interrupts-extended = <&intc 74 &omap3_pmx_core OMAP3_UART3_RX>;
 	pinctrl-0 = <&uart3_pins>;
+	pinctrl-names = "default";
+};
+
+&mcspi1 {
+	pinctrl-0 = <&mcspi1_pins>;
 	pinctrl-names = "default";
 };
 
