@@ -282,11 +282,14 @@ pca963x_dt_init(struct i2c_client *client, struct pca963x_chipdef *chip)
 	pdata->leds.leds = pca963x_leds;
 	pdata->leds.num_leds = chip->n_leds;
 
+#if 0
 	/* default to open-drain unless totem pole (push-pull) is specified */
 	if (of_property_read_bool(np, "nxp,totem-pole"))
 		pdata->outdrv = PCA963X_TOTEM_POLE;
 	else
 		pdata->outdrv = PCA963X_OPEN_DRAIN;
+#endif
+	pdata->outdrv = PCA963X_OPEN_DRAIN;
 
 	/* default to software blinking unless hardware blinking is specified */
 	if (of_property_read_bool(np, "nxp,hw-blink"))
