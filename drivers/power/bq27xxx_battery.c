@@ -274,7 +274,6 @@ static enum power_supply_property bq27000_battery_props[] = {
 	POWER_SUPPLY_PROP_POWER_AVG,
 	POWER_SUPPLY_PROP_HEALTH,
 	POWER_SUPPLY_PROP_MANUFACTURER,
-	POWER_SUPPLY_PROP_UPDATE_INTERVAL,
 };
 
 static enum power_supply_property bq27010_battery_props[] = {
@@ -295,7 +294,6 @@ static enum power_supply_property bq27010_battery_props[] = {
 	POWER_SUPPLY_PROP_CYCLE_COUNT,
 	POWER_SUPPLY_PROP_HEALTH,
 	POWER_SUPPLY_PROP_MANUFACTURER,
-	POWER_SUPPLY_PROP_UPDATE_INTERVAL,
 };
 
 static enum power_supply_property bq27500_battery_props[] = {
@@ -314,7 +312,6 @@ static enum power_supply_property bq27500_battery_props[] = {
 	POWER_SUPPLY_PROP_CYCLE_COUNT,
 	POWER_SUPPLY_PROP_HEALTH,
 	POWER_SUPPLY_PROP_MANUFACTURER,
-	POWER_SUPPLY_PROP_UPDATE_INTERVAL,
 };
 
 static enum power_supply_property bq27530_battery_props[] = {
@@ -333,7 +330,6 @@ static enum power_supply_property bq27530_battery_props[] = {
 	POWER_SUPPLY_PROP_HEALTH,
 	POWER_SUPPLY_PROP_CYCLE_COUNT,
 	POWER_SUPPLY_PROP_MANUFACTURER,
-	POWER_SUPPLY_PROP_UPDATE_INTERVAL,
 };
 
 static enum power_supply_property bq27541_battery_props[] = {
@@ -353,7 +349,6 @@ static enum power_supply_property bq27541_battery_props[] = {
 	POWER_SUPPLY_PROP_POWER_AVG,
 	POWER_SUPPLY_PROP_HEALTH,
 	POWER_SUPPLY_PROP_MANUFACTURER,
-	POWER_SUPPLY_PROP_UPDATE_INTERVAL,
 };
 
 static enum power_supply_property bq27545_battery_props[] = {
@@ -372,7 +367,6 @@ static enum power_supply_property bq27545_battery_props[] = {
 	POWER_SUPPLY_PROP_CYCLE_COUNT,
 	POWER_SUPPLY_PROP_POWER_AVG,
 	POWER_SUPPLY_PROP_MANUFACTURER,
-	POWER_SUPPLY_PROP_UPDATE_INTERVAL,
 };
 
 static enum power_supply_property bq27421_battery_props[] = {
@@ -388,7 +382,6 @@ static enum power_supply_property bq27421_battery_props[] = {
 	POWER_SUPPLY_PROP_CHARGE_NOW,
 	POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN,
 	POWER_SUPPLY_PROP_MANUFACTURER,
-	POWER_SUPPLY_PROP_UPDATE_INTERVAL,
 };
 
 #define BQ27XXX_PROP(_id, _prop)		\
@@ -975,9 +968,6 @@ static int bq27xxx_battery_get_property(struct power_supply *psy,
 		break;
 	case POWER_SUPPLY_PROP_MANUFACTURER:
 		val->strval = BQ27XXX_MANUFACTURER;
-		break;
-	case POWER_SUPPLY_PROP_UPDATE_INTERVAL:
-		val->intval = poll_interval * 1000;
 		break;
 	default:
 		return -EINVAL;
