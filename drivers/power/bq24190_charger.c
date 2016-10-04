@@ -1326,7 +1326,7 @@ static int bq24190_setup_dt(struct bq24190_dev_info *bdi)
 		return -1;
 
 	bdi->gpio_otg = devm_gpiod_get_optional(&bdi->client->dev,
-						"gpio-otg", GPIOD_OUT_LOW);
+						"otg", GPIOD_OUT_LOW);
 
 	return 0;
 }
