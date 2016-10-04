@@ -281,6 +281,7 @@
 		#size-cells = <0>;
 		reg = <0x62>;
 		nxp,hw-blink;
+		nxp,leds-suspend;
 
 		red@0 {
 			label = "red";
