@@ -7,6 +7,7 @@ Optional properties:
 - nxp,totem-pole : use totem pole (push-pull) instead of open-drain (pca9632 defaults
   to open-drain, newer chips to totem pole)
 - nxp,hw-blink : use hardware blinking instead of software blinking
+- nxp,leds-suspend : turn off LEDS on system suspend
 
 Each led is represented as a sub-node of the nxp,pca963x device.
 

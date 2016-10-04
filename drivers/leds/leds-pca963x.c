@@ -294,6 +294,12 @@ pca963x_dt_init(struct i2c_client *client, struct pca963x_chipdef *chip)
 	else
 		pdata->blink_type = PCA963X_SW_BLINK;
 
+	/* default to turning off LEDs on suspend */
+	if (of_property_read_bool(np, "nxp,leds-suspend"))
+		pdata->suspend = PCA963X_LED_SUSPEND;
+	else
+		pdata->suspend = PCA963X_LED_RETAIN;
+
 	return pdata;
 }
 
@@ -385,6 +391,9 @@ static int pca963x_probe(struct i2c_client *client,
 
 		if (pdata && pdata->blink_type == PCA963X_HW_BLINK)
 			pca963x[i].led_cdev.blink_set = pca963x_blink_set;
+
+		if (pdata && pdata->suspend == PCA963X_LED_SUSPEND)
+			pca963x[i].led_cdev.flags = LED_CORE_SUSPENDRESUME;
 
 		err = led_classdev_register(&client->dev, &pca963x[i].led_cdev);
 		if (err < 0)
