@@ -541,7 +541,7 @@ static int bq24190_register_reset(struct bq24190_dev_info *bdi)
 
 static int bq24190_update_otg(struct bq24190_dev_info *bdi, bool pg_state)
 {
-	if (IS_ERR(bdi->gpio_otg))
+	if (bdi->gpio_otg == NULL)
 		return 0;
 
 	if (pg_state) {
