@@ -14,6 +14,7 @@
 #include <linux/of_irq.h>
 #include <linux/of_device.h>
 #include <linux/pm_runtime.h>
+#include <linux/pm_qos.h>
 #include <linux/power_supply.h>
 #include <linux/gpio.h>
 #include <linux/i2c.h>
@@ -157,6 +158,7 @@ struct bq24190_dev_info {
 	unsigned int			gpio_int;
 	unsigned int			irq;
 	rwlock_t			f_reg_lock;
+	struct pm_qos_request		pm_qos_request;
 	u8				f_reg;
 	u8				ss_reg;
 	u8				watchdog;
@@ -1231,6 +1233,14 @@ static irqreturn_t bq24190_irq_handler_thread(int irq, void *data)
 		}
 		if (bdi->ss_reg != ss_reg)
 			alert_charger = true;
+
+		if ((bdi->ss_reg & BQ24190_REG_SS_VBUS_STAT_MASK) &&
+				!(ss_reg & BQ24190_REG_SS_VBUS_STAT_MASK)) {
+			pm_qos_update_request(&bdi->pm_qos_request,
+				(ss_reg & BQ24190_REG_SS_VBUS_STAT_MASK)
+				? 30000 : PM_QOS_DEFAULT_VALUE);
+		}
+
 		bdi->ss_reg = ss_reg;
 	}
 
@@ -1410,6 +1420,9 @@ static int bq24190_probe(struct i2c_client *client,
 		goto out4;
 	}
 
+	pm_qos_add_request(&bdi->pm_qos_request,
+			   PM_QOS_CPU_DMA_LATENCY, PM_QOS_DEFAULT_VALUE);
+
 	return 0;
 
 out4:
@@ -1438,6 +1451,7 @@ static int bq24190_remove(struct i2c_client *client)
 	power_supply_unregister(bdi->battery);
 	power_supply_unregister(bdi->charger);
 	pm_runtime_disable(bdi->dev);
+	pm_qos_remove_request(&bdi->pm_qos_request);
 
 	if (bdi->gpio_int)
 		gpio_free(bdi->gpio_int);
