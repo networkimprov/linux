@@ -1225,6 +1225,14 @@ static irqreturn_t bq24190_irq_handler_thread(int irq, void *data)
 					ret);
 		}
 
+		/* prevent loss of interrupts due to pm */
+		if ((bdi->ss_reg & BQ24190_REG_SS_PG_STAT_MASK) !=
+				(ss_reg & BQ24190_REG_SS_PG_STAT_MASK)) {
+			pm_qos_update_request(&bdi->pm_qos_request,
+				(ss_reg & BQ24190_REG_SS_PG_STAT_MASK)
+				? 30000 : PM_QOS_DEFAULT_VALUE);
+		}
+
 		if ((bdi->ss_reg & battery_mask_ss) != (ss_reg & battery_mask_ss)) {
 			/* copy battery-related bits to saved ss_reg */
 			bdi->ss_reg &= ~battery_mask_ss;
@@ -1233,14 +1241,6 @@ static irqreturn_t bq24190_irq_handler_thread(int irq, void *data)
 		}
 		if (bdi->ss_reg != ss_reg)
 			alert_charger = true;
-
-		if ((bdi->ss_reg & BQ24190_REG_SS_VBUS_STAT_MASK) &&
-				!(ss_reg & BQ24190_REG_SS_VBUS_STAT_MASK)) {
-			pm_qos_update_request(&bdi->pm_qos_request,
-				(ss_reg & BQ24190_REG_SS_VBUS_STAT_MASK)
-				? 30000 : PM_QOS_DEFAULT_VALUE);
-		}
-
 		bdi->ss_reg = ss_reg;
 	}
 
