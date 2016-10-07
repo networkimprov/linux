@@ -350,6 +350,15 @@
 	pinctrl-names = "default";
 };
 
+&twl_gpio {
+	otg {
+		gpio-hog;
+		gpios = <6 0>;
+		output-high;
+		line-name = "otg-gpio";
+	};
+};
+
 &uart1 {
 	interrupts-extended = <&intc 72 &omap3_pmx_core OMAP3_UART1_RX>;
 	pinctrl-0 = <&uart1_pins>;
