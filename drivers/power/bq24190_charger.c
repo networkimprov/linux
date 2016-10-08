@@ -1228,6 +1228,7 @@ static irqreturn_t bq24190_irq_handler_thread(int irq, void *data)
 		/* prevent loss of interrupts due to pm */
 		if ((bdi->ss_reg & BQ24190_REG_SS_PG_STAT_MASK) !=
 				(ss_reg & BQ24190_REG_SS_PG_STAT_MASK)) {
+			dev_info(bdi->dev, "usb %s\n", (ss_reg & BQ24190_REG_SS_PG_STAT_MASK) ? "on" : "off");
 			pm_qos_update_request(&bdi->pm_qos_request,
 				(ss_reg & BQ24190_REG_SS_PG_STAT_MASK)
 				? 30000 : PM_QOS_DEFAULT_VALUE);
