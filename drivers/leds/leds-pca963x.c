@@ -102,6 +102,7 @@ struct pca963x {
 	struct mutex mutex;
 	struct i2c_client *client;
 	struct pca963x_led *leds;
+	unsigned long leds_on;
 };
 
 struct pca963x_led {
@@ -179,14 +180,42 @@ static void pca963x_blink(struct pca963x_led *pca963x)
 	mutex_unlock(&pca963x->chip->mutex);
 }
 
+static int pca963x_power_state(struct pca963x_led *pca963x)
+{
+	unsigned long *leds_on = &pca963x->chip->leds_on;
+	unsigned long cached_leds = pca963x->chip->leds_on;
+
+	if (pca963x->led_cdev.brightness > 0) {
+		if (test_bit(pca963x->led_num, leds_on))
+			return 0;
+
+		set_bit(pca963x->led_num, leds_on);
+	} else
+		clear_bit(pca963x->led_num, leds_on);
+
+	if (!cached_leds && *leds_on)
+		return i2c_smbus_write_byte_data(pca963x->chip->client,
+					PCA963X_MODE1, 0x00);
+	else if (!(*leds_on) && cached_leds)
+		return i2c_smbus_write_byte_data(pca963x->chip->client,
+					PCA963X_MODE1, BIT(4));
+
+	return 0;
+}
+
 static int pca963x_led_set(struct led_classdev *led_cdev,
 	enum led_brightness value)
 {
 	struct pca963x_led *pca963x;
+	int ret;
 
 	pca963x = container_of(led_cdev, struct pca963x_led, led_cdev);
 
-	return pca963x_brightness(pca963x, value);
+	ret = pca963x_brightness(pca963x, value);
+	if (ret < 0)
+		return ret;
+
+	return pca963x_power_state(pca963x);
 }
 
 static int pca963x_blink_set(struct led_classdev *led_cdev,
@@ -391,8 +420,8 @@ static int pca963x_probe(struct i2c_client *client,
 			goto exit;
 	}
 
-	/* Disable LED all-call address and set normal mode */
-	i2c_smbus_write_byte_data(client, PCA963X_MODE1, 0x00);
+	/* Disable LED all-call address, and power down initially */
+	i2c_smbus_write_byte_data(client, PCA963X_MODE1, BIT(4));
 
 	if (pdata) {
 		/* Configure output: open-drain or totem pole (push-pull) */
