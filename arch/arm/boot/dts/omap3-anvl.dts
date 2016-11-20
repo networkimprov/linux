@@ -338,6 +338,7 @@
 &mmc3 {
 	interrupts-extended = <&intc 94 &omap3_pmx_core2 0x46>;
 	vmmc-supply = <&fixed_3v3_sys>;
+	mmc-pwrseq = <&wlan_pwrseq>;
 	non-removable;
 	bus-width = <4>;
 	cap-power-off-card;
