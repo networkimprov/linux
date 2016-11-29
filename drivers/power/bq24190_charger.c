@@ -14,6 +14,7 @@
 #include <linux/of_irq.h>
 #include <linux/of_device.h>
 #include <linux/pm_runtime.h>
+#include <linux/pm_wakeirq.h>
 #include <linux/power_supply.h>
 #include <linux/gpio.h>
 #include <linux/i2c.h>
@@ -1374,6 +1375,7 @@ static int bq24190_probe(struct i2c_client *client,
 
 	pm_runtime_enable(dev);
 	pm_runtime_resume(dev);
+	dev_pm_enable_wake_irq(dev);
 
 	ret = bq24190_hw_init(bdi);
 	if (ret < 0) {
