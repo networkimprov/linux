@@ -8,6 +8,7 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/pm_wakeirq.h>
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
@@ -1110,7 +1111,7 @@ static int bq24190_battery_set_property(struct power_supply *psy,
 
 	dev_dbg(bdi->dev, "prop: %d\n", psp);
 
-	pm_runtime_put_sync(bdi->dev);
+	pm_runtime_get_sync(bdi->dev);
 
 	switch (psp) {
 	case POWER_SUPPLY_PROP_ONLINE:
@@ -1384,6 +1385,7 @@ static int bq24190_probe(struct i2c_client *client,
 
 	pm_runtime_enable(dev);
 	pm_runtime_resume(dev);
+	dev_pm_enable_wake_irq(dev);
 
 	ret = bq24190_hw_init(bdi);
 	if (ret < 0) {
