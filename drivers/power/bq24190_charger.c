@@ -509,9 +509,9 @@ static int bq24190_set_operating_params(struct bq24190_dev_info *bdi)
 	if (ret < 0)
 		return ret;
 
-	if (bdi->sys_min >= 3000 && bdi->sys_min <= 3700) {
+	if (bdi->sys_min) {
 		v = bdi->sys_min / 100 - 30; // manual section 9.5.1.2, table 9
-		ret = ba24190_write_mask(bdi, BQ24190_REG_POC,
+		ret = bq24190_write_mask(bdi, BQ24190_REG_POC,
 					 BQ24190_REG_POC_SYS_MIN_MASK,
 					 BQ24190_REG_POC_SYS_MIN_SHIFT,
 					 v);
@@ -519,9 +519,9 @@ static int bq24190_set_operating_params(struct bq24190_dev_info *bdi)
 			return ret;
 	}
 
-	if (bdi->iprechg >= 128 && bdi->iprechg <= 2048) {
+	if (bdi->iprechg) {
 		v = (bdi->iprechg - 128) / 128; // manual section 9.5.1.4, table 11
-		ret = ba24190_write_mask(bdi, BQ24190_REG_PCTCC,
+		ret = bq24190_write_mask(bdi, BQ24190_REG_PCTCC,
 					 BQ24190_REG_PCTCC_IPRECHG_MASK,
 					 BQ24190_REG_PCTCC_IPRECHG_SHIFT,
 					 v);
@@ -529,9 +529,9 @@ static int bq24190_set_operating_params(struct bq24190_dev_info *bdi)
 			return ret;
 	}
 
-	if (bdi->iterm >= 128 && bdi->iterm <= 2048) {
+	if (bdi->iterm) {
 		v = (bdi->iterm - 128) / 128; // manual section 9.5.1.4, table 11
-		ret = ba24190_write_mask(bdi, BQ24190_REG_PCTCC,
+		ret = bq24190_write_mask(bdi, BQ24190_REG_PCTCC,
 					 BQ24190_REG_PCTCC_ITERM_MASK,
 					 BQ24190_REG_PCTCC_ITERM_SHIFT,
 					 v);
@@ -1328,13 +1328,29 @@ out:
 #ifdef CONFIG_OF
 static int bq24190_setup_dt(struct bq24190_dev_info *bdi)
 {
+	u16 input;
+	
 	bdi->irq = irq_of_parse_and_map(bdi->dev->of_node, 0);
 	if (bdi->irq <= 0)
 		return -1;
 
-	of_property_read_u16(bdi->dev->of_node, "ti,sys_min", &bdi->sys_min);
-	of_property_read_u16(bdi->dev->of_node, "ti,iprechg", &bdi->iprechg);
-	of_property_read_u16(bdi->dev->of_node, "ti,iterm", &bdi->iterm);
+	if (of_property_read_u16(bdi->dev->of_node, "ti,sys_min", &input))
+		if (input >= 3000 && input <= 3700)
+			bdi->sys_min = input;
+		else
+			dev_err(bdi->dev, "invalid value for ti,sys_min\n");
+
+	if (of_property_read_u16(bdi->dev->of_node, "ti,iprechg", &input))
+		if (input >= 128 && input <= 2048)
+			bdi->iprechg = input;
+		else
+			dev_err(bdi->dev, "invalid value for ti,iprechg\n");
+
+	if (of_property_read_u16(bdi->dev->of_node, "ti,iterm", &input))
+		if (input >= 128 && input <= 2048)
+			bdi->iterm = input;
+		else
+			dev_err(bdi->dev, "invalid value for ti,iterm\n");
 
 	return 0;
 }
