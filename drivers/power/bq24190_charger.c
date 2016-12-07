@@ -156,6 +156,9 @@ struct bq24190_dev_info {
 	kernel_ulong_t			model;
 	unsigned int			gpio_int;
 	unsigned int			irq;
+	u16				sys_min;
+	u16				iprechg;
+	u16				iterm;
 	rwlock_t			f_reg_lock;
 	bool				initialized;
 	bool				irq_event;
@@ -480,18 +483,19 @@ static int bq24190_sysfs_create_group(struct bq24190_dev_info *bdi)
 static inline void bq24190_sysfs_remove_group(struct bq24190_dev_info *bdi) {}
 #endif
 
-/*
- * According to the "Host Mode and default Mode" section of the
- * manual, a write to any register causes the bq24190 to switch
- * from default mode to host mode.  It will switch back to default
- * mode after a WDT timeout unless the WDT is turned off as well.
- * So, by simply turning off the WDT, we accomplish both with the
- * same write.
- */
-static int bq24190_set_mode_host(struct bq24190_dev_info *bdi)
+static int bq24190_set_operating_params(struct bq24190_dev_info *bdi)
 {
 	int ret;
 	u8 v;
+
+	/*
+	 * According to the "Host Mode and default Mode" section of the
+	 * manual, a write to any register causes the bq24190 to switch
+	 * from default mode to host mode.  It will switch back to default
+	 * mode after a WDT timeout unless the WDT is turned off as well.
+	 * So, by simply turning off the WDT, we accomplish both with the
+	 * same write.
+	 */
 
 	ret = bq24190_read(bdi, BQ24190_REG_CTTC, &v);
 	if (ret < 0)
@@ -501,7 +505,41 @@ static int bq24190_set_mode_host(struct bq24190_dev_info *bdi)
 					BQ24190_REG_CTTC_WATCHDOG_SHIFT);
 	v &= ~BQ24190_REG_CTTC_WATCHDOG_MASK;
 
-	return bq24190_write(bdi, BQ24190_REG_CTTC, v);
+	ret = bq24190_write(bdi, BQ24190_REG_CTTC, v);
+	if (ret < 0)
+		return ret;
+
+	if (bdi->sys_min >= 3000 && bdi->sys_min <= 3700) {
+		v = bdi->sys_min / 100 - 30; // manual section 9.5.1.2, table 9
+		ret = ba24190_write_mask(bdi, BQ24190_REG_POC,
+					 BQ24190_REG_POC_SYS_MIN_MASK,
+					 BQ24190_REG_POC_SYS_MIN_SHIFT,
+					 v);
+		if (ret < 0)
+			return ret;
+	}
+
+	if (bdi->iprechg >= 128 && bdi->iprechg <= 2048) {
+		v = (bdi->iprechg - 128) / 128; // manual section 9.5.1.4, table 11
+		ret = ba24190_write_mask(bdi, BQ24190_REG_PCTCC,
+					 BQ24190_REG_PCTCC_IPRECHG_MASK,
+					 BQ24190_REG_PCTCC_IPRECHG_SHIFT,
+					 v);
+		if (ret < 0)
+			return ret;
+	}
+
+	if (bdi->iterm >= 128 && bdi->iterm <= 2048) {
+		v = (bdi->iterm - 128) / 128; // manual section 9.5.1.4, table 11
+		ret = ba24190_write_mask(bdi, BQ24190_REG_PCTCC,
+					 BQ24190_REG_PCTCC_ITERM_MASK,
+					 BQ24190_REG_PCTCC_ITERM_SHIFT,
+					 v);
+		if (ret < 0)
+			return ret;
+	}
+
+	return 0;
 }
 
 static int bq24190_register_reset(struct bq24190_dev_info *bdi)
@@ -1277,7 +1315,7 @@ static int bq24190_hw_init(struct bq24190_dev_info *bdi)
 	if (ret < 0)
 		goto out;
 
-	ret = bq24190_set_mode_host(bdi);
+	ret = bq24190_set_operating_params(bdi);
 	if (ret < 0)
 		goto out;
 
@@ -1293,6 +1331,10 @@ static int bq24190_setup_dt(struct bq24190_dev_info *bdi)
 	bdi->irq = irq_of_parse_and_map(bdi->dev->of_node, 0);
 	if (bdi->irq <= 0)
 		return -1;
+
+	of_property_read_u16(bdi->dev->of_node, "ti,sys_min", &bdi->sys_min);
+	of_property_read_u16(bdi->dev->of_node, "ti,iprechg", &bdi->iprechg);
+	of_property_read_u16(bdi->dev->of_node, "ti,iterm", &bdi->iterm);
 
 	return 0;
 }
@@ -1356,6 +1398,7 @@ static int bq24190_probe(struct i2c_client *client,
 	bdi->dev = dev;
 	bdi->model = id->driver_data;
 	strncpy(bdi->model_name, id->name, I2C_NAME_SIZE);
+	bdi->sys_min = bdi->iprechg = bdi->iterm = 0;
 	rwlock_init(&bdi->f_reg_lock);
 	bdi->f_reg = 0;
 	bdi->ss_reg = BQ24190_REG_SS_VBUS_STAT_MASK;
@@ -1507,7 +1550,7 @@ static int bq24190_pm_resume(struct device *dev)
 
 	pm_runtime_get_sync(bdi->dev);
 	bq24190_register_reset(bdi);
- 	bq24190_set_mode_host(bdi);
+ 	bq24190_set_operating_params(bdi);
 	bq24190_read(bdi, BQ24190_REG_SS, &bdi->ss_reg);
 	pm_runtime_put_sync(bdi->dev);
 
