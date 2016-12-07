@@ -1334,23 +1334,26 @@ static int bq24190_setup_dt(struct bq24190_dev_info *bdi)
 	if (bdi->irq <= 0)
 		return -1;
 
-	if (of_property_read_u16(bdi->dev->of_node, "ti,sys_min", &input))
+	if (of_property_read_u16(bdi->dev->of_node, "ti,sys_min", &input)) {
 		if (input >= 3000 && input <= 3700)
 			bdi->sys_min = input;
 		else
 			dev_err(bdi->dev, "invalid value for ti,sys_min\n");
+	}
 
-	if (of_property_read_u16(bdi->dev->of_node, "ti,iprechg", &input))
+	if (of_property_read_u16(bdi->dev->of_node, "ti,iprechg", &input)) {
 		if (input >= 128 && input <= 2048)
 			bdi->iprechg = input;
 		else
 			dev_err(bdi->dev, "invalid value for ti,iprechg\n");
+	}
 
-	if (of_property_read_u16(bdi->dev->of_node, "ti,iterm", &input))
+	if (of_property_read_u16(bdi->dev->of_node, "ti,iterm", &input)) {
 		if (input >= 128 && input <= 2048)
 			bdi->iterm = input;
 		else
 			dev_err(bdi->dev, "invalid value for ti,iterm\n");
+	}
 
 	return 0;
 }
