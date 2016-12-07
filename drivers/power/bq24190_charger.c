@@ -44,6 +44,8 @@
 #define BQ24190_REG_POC_SYS_MIN_SHIFT		1
 #define BQ24190_REG_POC_BOOST_LIM_MASK		BIT(0)
 #define BQ24190_REG_POC_BOOST_LIM_SHIFT		0
+#define BQ24190_REG_POC_SYS_MIN_MIN		3000
+#define BQ24190_REG_POC_SYS_MIN_MAX		3700
 
 #define BQ24190_REG_CCC		0x02 /* Charge Current Control */
 #define BQ24190_REG_CCC_ICHG_MASK		(BIT(7) | BIT(6) | BIT(5) | \
@@ -59,6 +61,10 @@
 #define BQ24190_REG_PCTCC_ITERM_MASK		(BIT(3) | BIT(2) | BIT(1) | \
 						 BIT(0))
 #define BQ24190_REG_PCTCC_ITERM_SHIFT		0
+#define BQ24190_REG_PCTCC_IPRECHG_MIN		128
+#define BQ24190_REG_PCTCC_IPRECHG_MAX		2048
+#define BQ24190_REG_PCTCC_ITERM_MIN		128
+#define BQ24190_REG_PCTCC_ITERM_MAX		2048
 
 #define BQ24190_REG_CVC		0x04 /* Charge Voltage Control */
 #define BQ24190_REG_CVC_VREG_MASK		(BIT(7) | BIT(6) | BIT(5) | \
@@ -1329,27 +1335,30 @@ out:
 static int bq24190_setup_dt(struct bq24190_dev_info *bdi)
 {
 	u16 input;
-	
+
 	bdi->irq = irq_of_parse_and_map(bdi->dev->of_node, 0);
 	if (bdi->irq <= 0)
 		return -1;
 
 	if (of_property_read_u16(bdi->dev->of_node, "ti,sys_min", &input)) {
-		if (input >= 3000 && input <= 3700)
+		if (input >= BQ24190_REG_POC_SYS_MIN_MIN
+		 && input <= BQ24190_REG_POC_SYS_MIN_MAX)
 			bdi->sys_min = input;
 		else
 			dev_err(bdi->dev, "invalid value for ti,sys_min\n");
 	}
 
 	if (of_property_read_u16(bdi->dev->of_node, "ti,iprechg", &input)) {
-		if (input >= 128 && input <= 2048)
+		if (input >= BQ24190_REG_PCTCC_IPRECHG_MIN
+		 && input <= BQ24190_REG_PCTCC_IPRECHG_MAX)
 			bdi->iprechg = input;
 		else
 			dev_err(bdi->dev, "invalid value for ti,iprechg\n");
 	}
 
 	if (of_property_read_u16(bdi->dev->of_node, "ti,iterm", &input)) {
-		if (input >= 128 && input <= 2048)
+		if (input >= BQ24190_REG_PCTCC_ITERM_MIN
+		 && input <= BQ24190_REG_PCTCC_ITERM_MAX)
 			bdi->iterm = input;
 		else
 			dev_err(bdi->dev, "invalid value for ti,iterm\n");
@@ -1569,7 +1578,7 @@ static int bq24190_pm_resume(struct device *dev)
 
 	pm_runtime_get_sync(bdi->dev);
 	bq24190_register_reset(bdi);
- 	bq24190_set_operating_params(bdi);
+	bq24190_set_operating_params(bdi);
 	bq24190_read(bdi, BQ24190_REG_SS, &bdi->ss_reg);
 	pm_runtime_put_sync(bdi->dev);
 
