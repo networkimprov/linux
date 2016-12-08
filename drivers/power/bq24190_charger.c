@@ -526,7 +526,7 @@ static int bq24190_set_operating_params(struct bq24190_dev_info *bdi)
 	}
 
 	if (bdi->iprechg) {
-		v = (bdi->iprechg - 128) / 128; // manual section 9.5.1.4, table 11
+		v = bdi->iprechg / 128 - 1; // manual section 9.5.1.4, table 11
 		ret = bq24190_write_mask(bdi, BQ24190_REG_PCTCC,
 					 BQ24190_REG_PCTCC_IPRECHG_MASK,
 					 BQ24190_REG_PCTCC_IPRECHG_SHIFT,
@@ -536,7 +536,7 @@ static int bq24190_set_operating_params(struct bq24190_dev_info *bdi)
 	}
 
 	if (bdi->iterm) {
-		v = (bdi->iterm - 128) / 128; // manual section 9.5.1.4, table 11
+		v = bdi->iterm / 128 - 1; // manual section 9.5.1.4, table 11
 		ret = bq24190_write_mask(bdi, BQ24190_REG_PCTCC,
 					 BQ24190_REG_PCTCC_ITERM_MASK,
 					 BQ24190_REG_PCTCC_ITERM_SHIFT,
