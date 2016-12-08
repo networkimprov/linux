@@ -18,7 +18,7 @@ Optional properties:
 Example:
 
 bq24190 {
-        compatible = "ti,bq25890";
+        compatible = "ti,bq24190";
         reg = <0x6a>;
         // interrupt configuration here
         ti,precharge-current = <256>;
