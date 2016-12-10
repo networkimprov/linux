@@ -1,0 +1,25 @@
+* TI BQ27425 Fuel Gauge
+
+http://www.ti.com/lit/ds/symlink/bq27425-g2a.pdf
+
+Please note that if any of the optional properties are defined
+then all settings must be.
+
+Required properties:
+- compatible: Should be "ti,bq27425"
+- reg: integer, i2c of the device
+
+Optional properties:
+- ti,design-capacity: integer of mAh of the battery
+- ti,design-energy: integer of the mWh of the battery
+- ti,terminate-voltage: integer of mV of the dead voltage of
+			the battery
+
+bq27425 {
+	compatible = "ti,bq27425";
+	reg = <0x55>;
+
+	ti,design-capacity = <1360>;
+	ti,design-energy = <4970>;
+	ti,terminate-voltage = <3200>;
+};
