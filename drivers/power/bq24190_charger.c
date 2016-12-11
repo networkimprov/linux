@@ -44,6 +44,8 @@
 #define BQ24190_REG_POC_SYS_MIN_SHIFT		1
 #define BQ24190_REG_POC_BOOST_LIM_MASK		BIT(0)
 #define BQ24190_REG_POC_BOOST_LIM_SHIFT		0
+#define BQ24190_REG_POC_SYS_MIN_MIN		3000
+#define BQ24190_REG_POC_SYS_MIN_MAX		3700
 
 #define BQ24190_REG_CCC		0x02 /* Charge Current Control */
 #define BQ24190_REG_CCC_ICHG_MASK		(BIT(7) | BIT(6) | BIT(5) | \
@@ -59,6 +61,10 @@
 #define BQ24190_REG_PCTCC_ITERM_MASK		(BIT(3) | BIT(2) | BIT(1) | \
 						 BIT(0))
 #define BQ24190_REG_PCTCC_ITERM_SHIFT		0
+#define BQ24190_REG_PCTCC_IPRECHG_MIN		128
+#define BQ24190_REG_PCTCC_IPRECHG_MAX		2048
+#define BQ24190_REG_PCTCC_ITERM_MIN		128
+#define BQ24190_REG_PCTCC_ITERM_MAX		2048
 
 #define BQ24190_REG_CVC		0x04 /* Charge Voltage Control */
 #define BQ24190_REG_CVC_VREG_MASK		(BIT(7) | BIT(6) | BIT(5) | \
@@ -156,6 +162,9 @@ struct bq24190_dev_info {
 	kernel_ulong_t			model;
 	unsigned int			gpio_int;
 	unsigned int			irq;
+	u16				sys_min;
+	u16				iprechg;
+	u16				iterm;
 	rwlock_t			f_reg_lock;
 	bool				initialized;
 	bool				irq_event;
@@ -480,18 +489,19 @@ static int bq24190_sysfs_create_group(struct bq24190_dev_info *bdi)
 static inline void bq24190_sysfs_remove_group(struct bq24190_dev_info *bdi) {}
 #endif
 
-/*
- * According to the "Host Mode and default Mode" section of the
- * manual, a write to any register causes the bq24190 to switch
- * from default mode to host mode.  It will switch back to default
- * mode after a WDT timeout unless the WDT is turned off as well.
- * So, by simply turning off the WDT, we accomplish both with the
- * same write.
- */
-static int bq24190_set_mode_host(struct bq24190_dev_info *bdi)
+static int bq24190_set_operating_params(struct bq24190_dev_info *bdi)
 {
 	int ret;
 	u8 v;
+
+	/*
+	 * According to the "Host Mode and default Mode" section of the
+	 * manual, a write to any register causes the bq24190 to switch
+	 * from default mode to host mode.  It will switch back to default
+	 * mode after a WDT timeout unless the WDT is turned off as well.
+	 * So, by simply turning off the WDT, we accomplish both with the
+	 * same write.
+	 */
 
 	ret = bq24190_read(bdi, BQ24190_REG_CTTC, &v);
 	if (ret < 0)
@@ -501,7 +511,41 @@ static int bq24190_set_mode_host(struct bq24190_dev_info *bdi)
 					BQ24190_REG_CTTC_WATCHDOG_SHIFT);
 	v &= ~BQ24190_REG_CTTC_WATCHDOG_MASK;
 
-	return bq24190_write(bdi, BQ24190_REG_CTTC, v);
+	ret = bq24190_write(bdi, BQ24190_REG_CTTC, v);
+	if (ret < 0)
+		return ret;
+
+	if (bdi->sys_min) {
+		v = bdi->sys_min / 100 - 30; // manual section 9.5.1.2, table 9
+		ret = bq24190_write_mask(bdi, BQ24190_REG_POC,
+					 BQ24190_REG_POC_SYS_MIN_MASK,
+					 BQ24190_REG_POC_SYS_MIN_SHIFT,
+					 v);
+		if (ret < 0)
+			return ret;
+	}
+
+	if (bdi->iprechg) {
+		v = bdi->iprechg / 128 - 1; // manual section 9.5.1.4, table 11
+		ret = bq24190_write_mask(bdi, BQ24190_REG_PCTCC,
+					 BQ24190_REG_PCTCC_IPRECHG_MASK,
+					 BQ24190_REG_PCTCC_IPRECHG_SHIFT,
+					 v);
+		if (ret < 0)
+			return ret;
+	}
+
+	if (bdi->iterm) {
+		v = bdi->iterm / 128 - 1; // manual section 9.5.1.4, table 11
+		ret = bq24190_write_mask(bdi, BQ24190_REG_PCTCC,
+					 BQ24190_REG_PCTCC_ITERM_MASK,
+					 BQ24190_REG_PCTCC_ITERM_SHIFT,
+					 v);
+		if (ret < 0)
+			return ret;
+	}
+
+	return 0;
 }
 
 static int bq24190_register_reset(struct bq24190_dev_info *bdi)
@@ -1277,7 +1321,7 @@ static int bq24190_hw_init(struct bq24190_dev_info *bdi)
 	if (ret < 0)
 		goto out;
 
-	ret = bq24190_set_mode_host(bdi);
+	ret = bq24190_set_operating_params(bdi);
 	if (ret < 0)
 		goto out;
 
@@ -1290,9 +1334,35 @@ out:
 #ifdef CONFIG_OF
 static int bq24190_setup_dt(struct bq24190_dev_info *bdi)
 {
+	u32 input;
+
 	bdi->irq = irq_of_parse_and_map(bdi->dev->of_node, 0);
 	if (bdi->irq <= 0)
 		return -1;
+
+	if (of_property_read_u32(bdi->dev->of_node, "ti,minimum-sys-voltage", &input) == 0) {
+		if (input >= BQ24190_REG_POC_SYS_MIN_MIN
+		 && input <= BQ24190_REG_POC_SYS_MIN_MAX)
+			bdi->sys_min = input;
+		else
+			dev_err(bdi->dev, "invalid value for ti,minimum-sys-voltage: %u\n", input);
+	}
+
+	if (of_property_read_u32(bdi->dev->of_node, "ti,precharge-current", &input) == 0) {
+		if (input >= BQ24190_REG_PCTCC_IPRECHG_MIN
+		 && input <= BQ24190_REG_PCTCC_IPRECHG_MAX)
+			bdi->iprechg = input;
+		else
+			dev_err(bdi->dev, "invalid value for ti,precharge-current: %u\n", input);
+	}
+
+	if (of_property_read_u32(bdi->dev->of_node, "ti,termination-current", &input) == 0) {
+		if (input >= BQ24190_REG_PCTCC_ITERM_MIN
+		 && input <= BQ24190_REG_PCTCC_ITERM_MAX)
+			bdi->iterm = input;
+		else
+			dev_err(bdi->dev, "invalid value for ti,termination-current: %u\n", input);
+	}
 
 	return 0;
 }
@@ -1356,6 +1426,7 @@ static int bq24190_probe(struct i2c_client *client,
 	bdi->dev = dev;
 	bdi->model = id->driver_data;
 	strncpy(bdi->model_name, id->name, I2C_NAME_SIZE);
+	bdi->sys_min = bdi->iprechg = bdi->iterm = 0;
 	rwlock_init(&bdi->f_reg_lock);
 	bdi->f_reg = 0;
 	bdi->ss_reg = BQ24190_REG_SS_VBUS_STAT_MASK;
@@ -1507,7 +1578,7 @@ static int bq24190_pm_resume(struct device *dev)
 
 	pm_runtime_get_sync(bdi->dev);
 	bq24190_register_reset(bdi);
- 	bq24190_set_mode_host(bdi);
+	bq24190_set_operating_params(bdi);
 	bq24190_read(bdi, BQ24190_REG_SS, &bdi->ss_reg);
 	pm_runtime_put_sync(bdi->dev);
 
