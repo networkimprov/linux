@@ -1334,34 +1334,34 @@ out:
 #ifdef CONFIG_OF
 static int bq24190_setup_dt(struct bq24190_dev_info *bdi)
 {
-	u16 input;
+	u32 input;
 
 	bdi->irq = irq_of_parse_and_map(bdi->dev->of_node, 0);
 	if (bdi->irq <= 0)
 		return -1;
 
-	if (of_property_read_u16(bdi->dev->of_node, "ti,minimum-sys-voltage", &input)) {
+	if (of_property_read_u32(bdi->dev->of_node, "ti,minimum-sys-voltage", &input) == 0) {
 		if (input >= BQ24190_REG_POC_SYS_MIN_MIN
 		 && input <= BQ24190_REG_POC_SYS_MIN_MAX)
 			bdi->sys_min = input;
 		else
-			dev_err(bdi->dev, "invalid value for ti,minimum-sys-voltage\n");
+			dev_err(bdi->dev, "invalid value for ti,minimum-sys-voltage: %u\n", input);
 	}
 
-	if (of_property_read_u16(bdi->dev->of_node, "ti,precharge-current", &input)) {
+	if (of_property_read_u32(bdi->dev->of_node, "ti,precharge-current", &input) == 0) {
 		if (input >= BQ24190_REG_PCTCC_IPRECHG_MIN
 		 && input <= BQ24190_REG_PCTCC_IPRECHG_MAX)
 			bdi->iprechg = input;
 		else
-			dev_err(bdi->dev, "invalid value for ti,precharge-current\n");
+			dev_err(bdi->dev, "invalid value for ti,precharge-current: %u\n", input);
 	}
 
-	if (of_property_read_u16(bdi->dev->of_node, "ti,termination-current", &input)) {
+	if (of_property_read_u32(bdi->dev->of_node, "ti,termination-current", &input) == 0) {
 		if (input >= BQ24190_REG_PCTCC_ITERM_MIN
 		 && input <= BQ24190_REG_PCTCC_ITERM_MAX)
 			bdi->iterm = input;
 		else
-			dev_err(bdi->dev, "invalid value for ti,termination-current\n");
+			dev_err(bdi->dev, "invalid value for ti,termination-current: %u\n", input);
 	}
 
 	return 0;
