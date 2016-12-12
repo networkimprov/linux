@@ -7,7 +7,7 @@ Subject: [PATCH 1/7] power: bq24190_charger: call power_supply_changed() for
 When fault or status registers have changes, determine whether
 they're relevant to charger and/or battery before emitting uevent(s).
 
-Cc: Liam Breck <kernel@networkimprov.net>
+Fixes: d7bf353fd0aa3 ("bq24190_charger: Add support for TI BQ24190 Battery Charger")
 Cc: Mark A. Greer <mgreer@animalcreek.com>
 Cc: Tony Lindgren <tony@atomide.com>
 Signed-off-by: Liam Breck <kernel@networkimprov.net>
@@ -165,7 +165,7 @@ From the manual: "When a fault occurs, the charger device sends out INT
 
 [1] presumably a typo; should be "last fault"
 
-Cc: Liam Breck <kernel@networkimprov.net>
+Fixes: d7bf353fd0aa3 ("bq24190_charger: Add support for TI BQ24190 Battery Charger")
 Cc: Mark A. Greer <mgreer@animalcreek.com>
 Cc: Tony Lindgren <tony@atomide.com>
 Signed-off-by: Liam Breck <kernel@networkimprov.net>
@@ -407,7 +407,7 @@ those pins waking from off mode as listed in "Advisory 1.45".
 Devices with this issue should not configure the optional
 "wakeup" interrupt in the dts file.
 
-Cc: Tony Lindgren <tony@atomide.com>
+Fixes: d7bf353fd0aa3 ("bq24190_charger: Add support for TI BQ24190 Battery Charger")
 Cc: Mark A. Greer <mgreer@animalcreek.com>
 Cc: Liam Breck <kernel@networkimprov.net>
 Signed-off-by: Tony Lindgren <tony@atomide.com>
@@ -550,7 +550,7 @@ Subject: [PATCH 4/7] power: bq24190_charger: enable_irq() at end of probe()
 
 Persistent variables are uninitialized before then.
 
-Cc: Liam Breck <kernel@networkimprov.net>
+Fixes: d7bf353fd0aa3 ("bq24190_charger: Add support for TI BQ24190 Battery Charger")
 Cc: Mark A. Greer <mgreer@animalcreek.com>
 Cc: Tony Lindgren <tony@atomide.com>
 Signed-off-by: Liam Breck <kernel@networkimprov.net>
@@ -585,7 +585,7 @@ Date: Tue, 29 Nov 2016 18:02:23 -0800
 Subject: [PATCH 5/7]  power: bq24190_charger: install irq handler with
  IRQF_TRIGGER_FALLING
 
-Cc: Liam Breck <kernel@networkimprov.net>
+Fixes: d7bf353fd0aa3 ("bq24190_charger: Add support for TI BQ24190 Battery Charger")
 Cc: Mark A. Greer <mgreer@animalcreek.com>
 Cc: Tony Lindgren <tony@atomide.com>
 Signed-off-by: Liam Breck <kernel@networkimprov.net>
@@ -616,7 +616,7 @@ ti,minimum-sys-voltage - minimum system voltage in mV
 ti,precharge-current - pre-charge current in mA
 ti,termination-current - termination current in mA
 
-Cc: Liam Breck <kernel@networkimprov.net>
+Fixes: d7bf353fd0aa3 ("bq24190_charger: Add support for TI BQ24190 Battery Charger")
 Cc: Mark A. Greer <mgreer@animalcreek.com>
 Cc: Tony Lindgren <tony@atomide.com>
 Signed-off-by: Liam Breck <kernel@networkimprov.net>
@@ -801,7 +801,7 @@ Date: Sat, 10 Dec 2016 22:30:50 -0800
 Subject: [PATCH 7/7] devicetree: bindings: power: add docs for bq24190 charger
 
 
-Cc: Liam Breck <kernel@networkimprov.net>
+Fixes: d7bf353fd0aa3 ("bq24190_charger: Add support for TI BQ24190 Battery Charger")
 Cc: Mark A. Greer <mgreer@animalcreek.com>
 Cc: Tony Lindgren <tony@atomide.com>
 Signed-off-by: Liam Breck <kernel@networkimprov.net>
