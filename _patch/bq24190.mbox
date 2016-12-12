@@ -406,8 +406,8 @@ Devices with this issue should not configure the optional
 CC: Liam Breck <kernel@networkimprov.net>
 Signed-off-by: Tony Lindgren <tony@atomide.com>
 ---
- drivers/power/supply/bq24190_charger.c | 63 ++++++++++++++++++++++++++++++++++-------
- 1 file changed, 52 insertions(+), 11 deletions(-)
+ drivers/power/supply/bq24190_charger.c | 61 ++++++++++++++++++++++++++++++++++-------
+ 1 file changed, 51 insertions(+), 10 deletions(-)
 
 diff --git a/drivers/power/supply/bq24190_charger.c b/drivers/power/supply/bq24190_charger.c
 index b51eac1..1544648 100644
@@ -445,8 +445,7 @@ index b51eac1..1544648 100644
 -		goto out;
 +		return;
  	}
-- 
-+
+ 
  	i = 0;
  	do {
  		ret = bq24190_read(bdi, BQ24190_REG_F, &f_reg);
