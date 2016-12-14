@@ -4,8 +4,10 @@ Date: Sun, 18 Sep 2016 18:07:21 -0700
 Subject: [PATCH 1/7] power: bq24190_charger: call power_supply_changed() for
  relevant component
 
-When fault or status registers have changes, determine whether
-they're relevant to charger and/or battery before emitting uevent(s).
+When charger reports fault or status registers have changed, determine
+association with charger and/or battery before emitting uevent(s).
+Previously every register change resulted in uevents for both
+bq24190-charger and bq24190-battery.
 
 Fixes: d7bf353fd0aa3 ("bq24190_charger: Add support for TI BQ24190 Battery Charger")
 Cc: Mark A. Greer <mgreer@animalcreek.com>
@@ -548,7 +550,9 @@ From: Matt Ranostay <matt@ranostay.consulting>
 Date: Tue, 29 Nov 2016 17:56:07 -0800
 Subject: [PATCH 4/7] power: bq24190_charger: enable_irq() at end of probe()
 
-Persistent variables are uninitialized before then.
+Some device info fields are initialized after request_threaded_irq(),
+causing problems when the IRQ handler references them. Defer enablement
+of IRQ until everything in device info is ready.
 
 Fixes: d7bf353fd0aa3 ("bq24190_charger: Add support for TI BQ24190 Battery Charger")
 Cc: Mark A. Greer <mgreer@animalcreek.com>
@@ -585,6 +589,9 @@ Date: Tue, 29 Nov 2016 18:02:23 -0800
 Subject: [PATCH 5/7]  power: bq24190_charger: install irq handler with
  IRQF_TRIGGER_FALLING
 
+The interrupt signal is a 256us pulse, best detected on most
+hardware on the falling edge.
+
 Fixes: d7bf353fd0aa3 ("bq24190_charger: Add support for TI BQ24190 Battery Charger")
 Cc: Mark A. Greer <mgreer@animalcreek.com>
 Cc: Tony Lindgren <tony@atomide.com>
@@ -612,9 +619,10 @@ From: Matt Ranostay <matt@ranostay.consulting>
 Date: Sat, 10 Dec 2016 22:21:29 -0800
 Subject: [PATCH 6/7] power: bq24190_charger: set operating params from dts
 
-ti,minimum-sys-voltage - minimum system voltage in mV
-ti,precharge-current - pre-charge current in mA
-ti,termination-current - termination current in mA
+The following are essential for correct charger function:
+ ti,minimum-sys-voltage - minimum system voltage in mV
+ ti,precharge-current - pre-charge current in mA
+ ti,termination-current - termination current in mA
 
 Fixes: d7bf353fd0aa3 ("bq24190_charger: Add support for TI BQ24190 Battery Charger")
 Cc: Mark A. Greer <mgreer@animalcreek.com>
