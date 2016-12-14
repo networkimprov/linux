@@ -167,6 +167,7 @@ From the manual: "When a fault occurs, the charger device sends out INT
 
 [1] presumably a typo; should be "last fault"
 
+Depends-on: [PATCH 1/7] power: bq24190_charger: call power_supply_changed() for relevant component
 Fixes: d7bf353fd0aa3 ("bq24190_charger: Add support for TI BQ24190 Battery Charger")
 Cc: Mark A. Greer <mgreer@animalcreek.com>
 Cc: Tony Lindgren <tony@atomide.com>
@@ -409,6 +410,7 @@ those pins waking from off mode as listed in "Advisory 1.45".
 Devices with this issue should not configure the optional
 "wakeup" interrupt in the dts file.
 
+Depends-on: [PATCH 2/7] power: bq24190_charger: don't read fault register outside irq_handle_thread()
 Fixes: d7bf353fd0aa3 ("bq24190_charger: Add support for TI BQ24190 Battery Charger")
 Cc: Mark A. Greer <mgreer@animalcreek.com>
 Cc: Liam Breck <kernel@networkimprov.net>
@@ -554,6 +556,7 @@ Some device info fields are initialized after request_threaded_irq(),
 causing problems when the IRQ handler references them. Defer enablement
 of IRQ until everything in device info is ready.
 
+Depends-on: [PATCH 3/7] power: bq24190_charger: Check status on PM runtime resume
 Fixes: d7bf353fd0aa3 ("bq24190_charger: Add support for TI BQ24190 Battery Charger")
 Cc: Mark A. Greer <mgreer@animalcreek.com>
 Cc: Tony Lindgren <tony@atomide.com>
