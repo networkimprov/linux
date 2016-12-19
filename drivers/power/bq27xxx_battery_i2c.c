@@ -378,8 +378,8 @@ static int bq27xxx_battery_i2c_parse_dt(struct bq27xxx_device_info *di)
 
 		/* we need all three settings for safety reasons */
 		if (cap < 0 || energy < 0 || voltage < 0) {
-			dev_err(di->dev, "missing or invalid devicetree values;"
-					 "NVM not updated\n");
+			dev_err(di->dev,
+				"missing or invalid devicetree values; NVM not updated\n");
 			ret = -EINVAL;
 			goto out;
 		}
