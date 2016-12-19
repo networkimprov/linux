@@ -751,44 +751,48 @@ index cc7227a7..8d101c0 100644
  	if (ret < 0)
  		goto out;
  
-@@ -1290,10 +1334,36 @@ static int bq24190_hw_init(struct bq24190_dev_info *bdi)
+@@ -1290,10 +1334,40 @@ static int bq24190_hw_init(struct bq24190_dev_info *bdi)
  #ifdef CONFIG_OF
  static int bq24190_setup_dt(struct bq24190_dev_info *bdi)
  {
++ const char* str;
 +	u32 input;
 +
  	bdi->irq = irq_of_parse_and_map(bdi->dev->of_node, 0);
  	if (bdi->irq <= 0)
  		return -1;
  
-+	if (of_property_read_u32(bdi->dev->of_node, "ti,minimum-sys-voltage", &input) == 0) {
++ str = "ti,minimum-sys-voltage";
++	if (!of_property_read_u32(bdi->dev->of_node, str, &input)) {
 +		if (input >= BQ24190_REG_POC_SYS_MIN_MIN
 +		 && input <= BQ24190_REG_POC_SYS_MIN_MAX)
 +			bdi->sys_min = input;
 +		else
-+			dev_err(bdi->dev, "invalid value for ti,minimum-sys-voltage: %u\n", input);
++			dev_err(bdi->dev, "invalid value for %s: %u\n", str, input);
 +	}
 +
-+	if (of_property_read_u32(bdi->dev->of_node, "ti,precharge-current", &input) == 0) {
++ str = "ti,precharge-current";
++	if (!of_property_read_u32(bdi->dev->of_node, str, &input)) {
 +		if (input >= BQ24190_REG_PCTCC_IPRECHG_MIN
 +		 && input <= BQ24190_REG_PCTCC_IPRECHG_MAX)
 +			bdi->iprechg = input;
 +		else
-+			dev_err(bdi->dev, "invalid value for ti,precharge-current: %u\n", input);
++			dev_err(bdi->dev, "invalid value for %s: %u\n", str, input);
 +	}
 +
-+	if (of_property_read_u32(bdi->dev->of_node, "ti,termination-current", &input) == 0) {
++ str = "ti,termination-current";
++	if (!of_property_read_u32(bdi->dev->of_node, str, &input)) {
 +		if (input >= BQ24190_REG_PCTCC_ITERM_MIN
 +		 && input <= BQ24190_REG_PCTCC_ITERM_MAX)
 +			bdi->iterm = input;
 +		else
-+			dev_err(bdi->dev, "invalid value for ti,termination-current: %u\n", input);
++			dev_err(bdi->dev, "invalid value for %s: %u\n", str, input);
 +	}
 +
  	return 0;
  }
  #else
-@@ -1356,6 +1426,7 @@ static int bq24190_probe(struct i2c_client *client,
+@@ -1356,6 +1430,7 @@ static int bq24190_probe(struct i2c_client *client,
  	bdi->dev = dev;
  	bdi->model = id->driver_data;
  	strncpy(bdi->model_name, id->name, I2C_NAME_SIZE);
