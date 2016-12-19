@@ -755,14 +755,14 @@ index cc7227a7..8d101c0 100644
  #ifdef CONFIG_OF
  static int bq24190_setup_dt(struct bq24190_dev_info *bdi)
  {
-+ const char* str;
++	const char* str;
 +	u32 input;
 +
  	bdi->irq = irq_of_parse_and_map(bdi->dev->of_node, 0);
  	if (bdi->irq <= 0)
  		return -1;
  
-+ str = "ti,minimum-sys-voltage";
++	str = "ti,minimum-sys-voltage";
 +	if (!of_property_read_u32(bdi->dev->of_node, str, &input)) {
 +		if (input >= BQ24190_REG_POC_SYS_MIN_MIN
 +		 && input <= BQ24190_REG_POC_SYS_MIN_MAX)
@@ -771,7 +771,7 @@ index cc7227a7..8d101c0 100644
 +			dev_err(bdi->dev, "invalid value for %s: %u\n", str, input);
 +	}
 +
-+ str = "ti,precharge-current";
++	str = "ti,precharge-current";
 +	if (!of_property_read_u32(bdi->dev->of_node, str, &input)) {
 +		if (input >= BQ24190_REG_PCTCC_IPRECHG_MIN
 +		 && input <= BQ24190_REG_PCTCC_IPRECHG_MAX)
@@ -780,7 +780,7 @@ index cc7227a7..8d101c0 100644
 +			dev_err(bdi->dev, "invalid value for %s: %u\n", str, input);
 +	}
 +
-+ str = "ti,termination-current";
++	str = "ti,termination-current";
 +	if (!of_property_read_u32(bdi->dev->of_node, str, &input)) {
 +		if (input >= BQ24190_REG_PCTCC_ITERM_MIN
 +		 && input <= BQ24190_REG_PCTCC_ITERM_MAX)
