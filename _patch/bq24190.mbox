@@ -800,7 +800,7 @@ index cc7227a7..8d101c0 100644
  	rwlock_init(&bdi->f_reg_lock);
  	bdi->f_reg = 0;
  	bdi->ss_reg = BQ24190_REG_SS_VBUS_STAT_MASK;
-@@ -1507,7 +1578,7 @@ static int bq24190_pm_resume(struct device *dev)
+@@ -1507,7 +1582,7 @@ static int bq24190_pm_resume(struct device *dev)
  
  	pm_runtime_get_sync(bdi->dev);
  	bq24190_register_reset(bdi);
