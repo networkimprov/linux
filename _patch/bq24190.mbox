@@ -659,16 +659,16 @@ index cc7227a7..8d101c0 100644
  
  #define BQ24190_REG_CVC		0x04 /* Charge Voltage Control */
  #define BQ24190_REG_CVC_VREG_MASK		(BIT(7) | BIT(6) | BIT(5) | \
-@@ -156,6 +162,9 @@ struct bq24190_dev_info {
- 	kernel_ulong_t			model;
- 	unsigned int			gpio_int;
+@@ -158,6 +164,9 @@ struct bq24190_dev_info {
  	unsigned int			irq;
+ 	bool				initialized;
+ 	bool				irq_event;
 +	u16				sys_min;
 +	u16				iprechg;
 +	u16				iterm;
  	rwlock_t			f_reg_lock;
- 	bool				initialized;
- 	bool				irq_event;
+ 	u8				f_reg;
+ 	u8				ss_reg;
 @@ -480,19 +489,20 @@ static int bq24190_sysfs_create_group(struct bq24190_dev_info *bdi)
  static inline void bq24190_sysfs_remove_group(struct bq24190_dev_info *bdi) {}
  #endif
