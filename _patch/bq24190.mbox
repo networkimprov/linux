@@ -595,6 +595,7 @@ Subject: [PATCH 5/7]  power: bq24190_charger: install irq handler with
 The interrupt signal is a 256us pulse, best detected on most
 hardware on the falling edge.
 
+Depends-on: [PATCH 4/7] power: bq24190_charger: enable_irq() at end of probe()
 Fixes: d7bf353fd0aa3 ("bq24190_charger: Add support for TI BQ24190 Battery Charger")
 Cc: Mark A. Greer <mgreer@animalcreek.com>
 Cc: Tony Lindgren <tony@atomide.com>
@@ -627,6 +628,7 @@ The following are essential for correct charger function:
  ti,precharge-current - pre-charge current in mA
  ti,termination-current - termination current in mA
 
+Depends-on: [PATCH 5/7]  power: bq24190_charger: install irq handler with IRQF_TRIGGER_FALLING
 Fixes: d7bf353fd0aa3 ("bq24190_charger: Add support for TI BQ24190 Battery Charger")
 Cc: Mark A. Greer <mgreer@animalcreek.com>
 Cc: Tony Lindgren <tony@atomide.com>
