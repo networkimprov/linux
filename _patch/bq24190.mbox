@@ -426,9 +426,9 @@ index b51eac1..1544648 100644
 @@ -157,6 +157,8 @@ struct bq24190_dev_info {
  	unsigned int			gpio_int;
  	unsigned int			irq;
- 	rwlock_t			f_reg_lock;
 +	bool				initialized;
 +	bool				irq_event;
+ 	rwlock_t			f_reg_lock;
  	u8				f_reg;
  	u8				ss_reg;
  	u8				watchdog;
