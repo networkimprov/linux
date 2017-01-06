@@ -76,15 +76,9 @@
 };
 
 &omap3_pmx_core {
-	bq24190_irq_default_pin: pinmux_bq24190_irq_default_pin {
+	bq24190_irq_pin: pinmux_bq24190_irq_default_pin {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x2184, PIN_INPUT_PULLUP | MUX_MODE4)		/* mcbsp4_clkx.gpio_152 */
-		>;
-	};
-
-	bq24190_irq_sleep_pin: pinmux_bq24190_irq_sleep_pin {
-		pinctrl-single,pins = <
-			OMAP3_CORE1_IOPAD(0x2184, PIN_INPUT_PULLUP | MUX_MODE7)	/* mcbsp4_clkx.safe_mode */
 		>;
 	};
 
@@ -318,9 +312,8 @@
 	bq24190: charger@6b {
 		reg = <0x6b>;
 		compatible = "ti,bq24190";
-		pinctrl-0 = <&bq24190_irq_default_pin>;
-		pinctrl-1 = <&bq24190_irq_sleep_pin>;
-		pinctrl-names = "default", "sleep";
+		pinctrl-0 = <&bq24190_irq_pin>;
+		pinctrl-names = "default";
 		interrupts-extended = <&gpio5 24 IRQ_TYPE_EDGE_FALLING
 				       &omap3_pmx_core 0x154>;
 		interrupt-names = "irq", "wakeup";
