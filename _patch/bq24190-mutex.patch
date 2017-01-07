@@ -1,0 +1,123 @@
+From 5fb46561d4d875f338c2473077e325327589376d Mon Sep 17 00:00:00 2001
+From: Matt Ranostay <matt@ranostay.consulting>
+Date: Thu, 22 Sep 2016 00:09:14 -0700
+Subject: [PATCH 2/7] power: bq24190_charger: don't read fault register outside
+ irq_handle_thread() [squash into original and keep this comment]
+
+Caching the fault register after a single read may not keep an accurate
+value, so do two read()s in irq_handle_thread() and none elsewhere. If
+a safety timer fault clears itself later, we apparently don't get an
+interrupt (INT), however other interrupts would refresh the register cache.
+
+From the manual: "When a fault occurs, the charger device sends out INT
+ and keeps the fault state in REG09 until the host reads the fault register.
+ Before the host reads REG09 and all the faults are cleared, the charger
+ device would not send any INT upon new faults. In order to read the
+ current fault status, the host has to read REG09 two times consecutively.
+ The 1st reads fault register status from the last read [1] and the 2nd reads
+ the current fault register status."
+
+[1] presumably a typo; should be "last fault"
+
+Depends-on: [PATCH 1/7] power: bq24190_charger: call power_supply_changed() for relevant component
+Fixes: d7bf353fd0aa3 ("bq24190_charger: Add support for TI BQ24190 Battery Charger")
+Cc: Mark A. Greer <mgreer@animalcreek.com>
+Cc: Tony Lindgren <tony@atomide.com>
+Signed-off-by: Liam Breck <kernel@networkimprov.net>
+---
+ drivers/power/bq24190_charger.c | 24 ++++++++++--------------
+ 1 file changed, 10 insertions(+), 14 deletions(-)
+
+diff --git a/drivers/power/bq24190_charger.c b/drivers/power/bq24190_charger.c
+index b51eac1..13e159e 100644
+--- a/drivers/power/bq24190_charger.c
++++ b/drivers/power/bq24190_charger.c
+@@ -17,7 +17,6 @@
+ #include <linux/power_supply.h>
+ #include <linux/gpio.h>
+ #include <linux/i2c.h>
+-#include <linux/spinlock.h>
+ 
+ #include <linux/power/bq24190_charger.h>
+ 
+@@ -156,7 +155,7 @@ struct bq24190_dev_info {
+ 	kernel_ulong_t			model;
+ 	unsigned int			gpio_int;
+ 	unsigned int			irq;
+-	rwlock_t			f_reg_lock;
++	struct mutex			f_reg_lock;
+ 	u8				f_reg;
+ 	u8				ss_reg;
+ 	u8				watchdog;
+@@ -630,12 +629,11 @@ static int bq24190_charger_get_health(struct bq24190_dev_info *bdi,
+ 		union power_supply_propval *val)
+ {
+ 	u8 v;
+-	unsigned long flags;
+ 	int health;
+ 
+-	read_lock_irqsave(&bdi->f_reg_lock, flags);
++	mutex_lock(&bdi->f_reg_lock);
+ 	v = bdi->f_reg;
+-	read_unlock_irqrestore(&bdi->f_reg_lock, flags);
++	mutex_unlock(&bdi->f_reg_lock);
+ 
+ 	if (v & BQ24190_REG_F_BOOST_FAULT_MASK) {
+ 		/*
+@@ -919,12 +917,11 @@ static int bq24190_battery_get_status(struct bq24190_dev_info *bdi,
+ 		union power_supply_propval *val)
+ {
+ 	u8 ss_reg, chrg_fault;
+-	unsigned long flags;
+ 	int status, ret;
+ 
+-	read_lock_irqsave(&bdi->f_reg_lock, flags);
++	mutex_lock(&bdi->f_reg_lock);
+ 	chrg_fault = bdi->f_reg;
+-	read_unlock_irqrestore(&bdi->f_reg_lock, flags);
++	mutex_unlock(&bdi->f_reg_lock);
+ 
+ 	chrg_fault &= BQ24190_REG_F_CHRG_FAULT_MASK;
+ 	chrg_fault >>= BQ24190_REG_F_CHRG_FAULT_SHIFT;
+@@ -972,12 +969,11 @@ static int bq24190_battery_get_health(struct bq24190_dev_info *bdi,
+ 		union power_supply_propval *val)
+ {
+ 	u8 v;
+-	unsigned long flags;
+ 	int health;
+ 
+-	read_lock_irqsave(&bdi->f_reg_lock, flags);
++	mutex_lock(&bdi->f_reg_lock);
+ 	v = bdi->f_reg;
+-	read_unlock_irqrestore(&bdi->f_reg_lock, flags);
++	mutex_unlock(&bdi->f_reg_lock);
+ 
+ 	if (v & BQ24190_REG_F_BAT_FAULT_MASK) {
+ 		health = POWER_SUPPLY_HEALTH_OVERVOLTAGE;
+@@ -1194,7 +1190,7 @@ static irqreturn_t bq24190_irq_handler_thread(int irq, void *data)
+ 			!!(f_reg & BQ24190_REG_F_CHRG_FAULT_MASK),
+ 			!!(f_reg & BQ24190_REG_F_BAT_FAULT_MASK),
+ 			!!(f_reg & BQ24190_REG_F_NTC_FAULT_MASK));
+-		write_lock(&bdi->f_reg_lock);
++		mutex_lock(&bdi->f_reg_lock);
+ 		if ((bdi->f_reg & battery_mask_f) != (f_reg & battery_mask_f)) {
+ 			/* copy battery-related bits to saved f_reg */
+ 			bdi->f_reg &= ~battery_mask_f;
+@@ -1204,7 +1200,7 @@ static irqreturn_t bq24190_irq_handler_thread(int irq, void *data)
+ 		if (bdi->f_reg != f_reg)
+ 			alert_charger = true;
+ 		bdi->f_reg = f_reg;
+-		write_unlock(&bdi->f_reg_lock);
++		mutex_unlock(&bdi->f_reg_lock);
+ 	}
+ 
+ 	if (ss_reg != bdi->ss_reg) {
+@@ -1350,7 +1346,7 @@ static int bq24190_probe(struct i2c_client *client,
+ 	bdi->dev = dev;
+ 	bdi->model = id->driver_data;
+ 	strncpy(bdi->model_name, id->name, I2C_NAME_SIZE);
+-	rwlock_init(&bdi->f_reg_lock);
++	mutex_init(&bdi->f_reg_lock);
+ 	bdi->f_reg = 0;
+ 	bdi->ss_reg = BQ24190_REG_SS_VBUS_STAT_MASK;
+ 
