@@ -17,6 +17,7 @@
 #include <linux/device.h>
 #include <linux/notifier.h>
 #include <linux/err.h>
+#include <linux/of.h>
 #include <linux/power_supply.h>
 #include <linux/thermal.h>
 #include "power_supply.h"
@@ -486,6 +487,34 @@ struct power_supply *devm_power_supply_get_by_phandle(struct device *dev,
 }
 EXPORT_SYMBOL_GPL(devm_power_supply_get_by_phandle);
 #endif /* CONFIG_OF */
+
+int power_supply_get_battery_info(struct power_supply *psy,
+				  struct power_supply_battery_info *info,
+				  const char *property)
+{
+	struct device_node *np = psy->of_node;
+	struct device_node *power_supply_battery_info_np;
+	int ret;
+
+	if (!np)
+		return -ENXIO;
+
+	power_supply_battery_info_np = of_parse_phandle(np, property, 0);
+	if (!power_supply_battery_info_np)
+		return -ENODEV;
+
+	memset(info, 0, sizeof(*info));
+
+	of_property_read_u32(power_supply_battery_info_np,
+			     "terminal-microvolt", &info->terminal_voltage_uv);
+	of_property_read_u32(power_supply_battery_info_np,
+			     "design-microwatt-hours", &info->design_energy_uwh);
+	of_property_read_u32(power_supply_battery_info_np,
+			     "design-microamp-hours", &info->design_current_uah);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(power_supply_get_battery_info);
 
 int power_supply_get_property(struct power_supply *psy,
 			    enum power_supply_property psp,

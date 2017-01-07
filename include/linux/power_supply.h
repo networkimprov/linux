@@ -288,6 +288,18 @@ struct power_supply_info {
 	int use_for_apm;
 };
 
+/*
+ * This is the recommended struct to specify static battery parameters.
+ * Power supply class itself doesn't use this, but it implements access
+ * that most platform drivers should use for consistency.
+ */
+
+struct power_supply_battery_info {
+	int design_energy_uwh;		/* microWatt-hours */
+	int design_current_uah;		/* microAmp-hours */
+	int terminal_voltage_uv; 	/* microVolts */
+};
+
 extern struct atomic_notifier_head power_supply_notifier;
 extern int power_supply_reg_notifier(struct notifier_block *nb);
 extern void power_supply_unreg_notifier(struct notifier_block *nb);
@@ -306,6 +318,10 @@ static inline struct power_supply *
 devm_power_supply_get_by_phandle(struct device *dev, const char *property)
 { return NULL; }
 #endif /* CONFIG_OF */
+
+extern int power_supply_get_battery_info(struct power_supply *psy,
+					 struct power_supply_battery_info *info,
+					 const char *property);
 extern void power_supply_changed(struct power_supply *psy);
 extern int power_supply_am_i_supplied(struct power_supply *psy);
 extern int power_supply_set_battery_charged(struct power_supply *psy);
