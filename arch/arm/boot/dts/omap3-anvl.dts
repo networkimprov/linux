@@ -272,6 +272,15 @@
 #include "twl4030.dtsi"
 #include "twl4030_omap3.dtsi"
 
+/{
+  bat: battery {
+	compatible = "simple-battery";
+	voltage-min-design-microvolt = <3300000>;
+	energy-full-design-microwatt-hours = <5290000>;
+	charge-full-design-microamp-hours = <1430000>;
+  };
+};
+
 /* Used by PCA9632 LED controller */
 &vaux2 {
 	regulator-min-microvolt = <2500000>;
@@ -315,6 +324,7 @@
 	bq27425: charger@55 {
 		reg = <0x55>;
 		compatible = "ti,bq27425";
+		monitored-battery = <&bat>;
 	};
 
 	bq24190: charger@6b {
