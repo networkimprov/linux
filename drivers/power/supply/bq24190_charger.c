@@ -127,8 +127,6 @@
 #define BQ24190_REG_F_BAT_FAULT_SHIFT		3
 #define BQ24190_REG_F_NTC_FAULT_MASK		(BIT(2) | BIT(1) | BIT(0))
 #define BQ24190_REG_F_NTC_FAULT_SHIFT		0
-#define BQ24190_REG_F_BAT_ALERT_MASK		(BQ24190_REG_F_BAT_FAULT_MASK | \
-						 BQ24190_REG_F_NTC_FAULT_MASK)
 
 #define BQ24190_REG_VPRS	0x0A /* Vendor/Part/Revision Status */
 #define BQ24190_REG_VPRS_PN_MASK		(BIT(5) | BIT(4) | BIT(3))
@@ -1192,45 +1190,11 @@ static const struct power_supply_desc bq24190_battery_desc = {
 	.property_is_writeable	= bq24190_battery_property_is_writeable,
 };
 
-static inline bool
-bq24190_has_ss_reg_battery_alert(struct bq24190_dev_info *bdi,
-				 const u8 val)
-{
-	u8 old, new;
-
-	old = bdi->ss_reg & BQ24190_REG_SS_CHRG_STAT_MASK;
-	new = val & BQ24190_REG_SS_CHRG_STAT_MASK;
-
-	return old != new;
-}
-
-static inline bool
-bq24190_has_ss_reg_charger_alert(struct bq24190_dev_info *bdi,
-				 const u8 val)
-{
-	u8 old, new;
-
-	old = bdi->ss_reg & ~BQ24190_REG_SS_CHRG_STAT_MASK;
-	new = val & ~BQ24190_REG_SS_CHRG_STAT_MASK;
-
-	return old != new;
-}
-
-static inline bool
-bq24190_has_f_reg_battery_alert(struct bq24190_dev_info *bdi,
-				const u8 val)
-{
-	u8 old, new;
-
-	old = bdi->f_reg & BQ24190_REG_F_BAT_ALERT_MASK;
-	new = val & BQ24190_REG_F_BAT_ALERT_MASK;
-
-	return old != new;
-}
-
-
 static void bq24190_check_status(struct bq24190_dev_info *bdi)
 {
+	const u8 battery_mask_ss = BQ24190_REG_SS_CHRG_STAT_MASK;
+	const u8 battery_mask_f = BQ24190_REG_F_BAT_FAULT_MASK
+			| BQ24190_REG_F_NTC_FAULT_MASK;
 	bool alert_charger = false, alert_battery = false;
 	u8 ss_reg = 0, f_reg = 0;
 	int i, ret;
@@ -1257,9 +1221,9 @@ static void bq24190_check_status(struct bq24190_dev_info *bdi)
 					ret);
 		}
 
-		if (bq24190_has_ss_reg_battery_alert(bdi, ss_reg))
+		if ((bdi->ss_reg & battery_mask_ss) != (ss_reg & battery_mask_ss))
 			alert_battery = true;
-		if (bq24190_has_ss_reg_charger_alert(bdi, ss_reg))
+		if ((bdi->ss_reg & ~battery_mask_ss) != (ss_reg & ~battery_mask_ss))
 			alert_charger = true;
 
 		bdi->ss_reg = ss_reg;
@@ -1286,10 +1250,9 @@ static void bq24190_check_status(struct bq24190_dev_info *bdi)
 			 !!(f_reg & BQ24190_REG_F_BAT_FAULT_MASK),
 			 !!(f_reg & BQ24190_REG_F_NTC_FAULT_MASK));
 
-		if (bq24190_has_f_reg_battery_alert(bdi, ss_reg))
+		if ((bdi->f_reg & battery_mask_f) != (f_reg & battery_mask_f))
 			alert_battery = true;
-
-		if (bdi->f_reg != f_reg)
+		if ((bdi->f_reg & ~battery_mask_f) != (f_reg & ~battery_mask_f))
 			alert_charger = true;
 
 		bdi->f_reg = f_reg;
