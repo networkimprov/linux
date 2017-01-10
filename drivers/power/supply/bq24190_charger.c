@@ -155,9 +155,9 @@ struct bq24190_dev_info {
 	kernel_ulong_t			model;
 	unsigned int			gpio_int;
 	unsigned int			irq;
-	struct mutex			f_reg_lock;
 	bool				initialized;
 	bool				irq_event;
+	struct mutex			f_reg_lock;
 	u8				f_reg;
 	u8				ss_reg;
 	u8				watchdog;
@@ -1457,8 +1457,8 @@ static int bq24190_probe(struct i2c_client *client,
 		goto out4;
 	}
 
-	enable_irq(bdi->irq);
 	bdi->initialized = 1;
+	enable_irq(bdi->irq);
 
 	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
