@@ -1205,6 +1205,34 @@ static void bq24190_check_status(struct bq24190_dev_info *bdi)
 		return;
 	}
 
+	/* We need to read f_reg twice if fault is set to get correct value */
+	i = 0;
+	do {
+		ret = bq24190_read(bdi, BQ24190_REG_F, &f_reg);
+		if (ret < 0) {
+			dev_err(bdi->dev, "Can't read F reg: %d\n", ret);
+			return;
+		}
+	} while (f_reg && ++i < 2);
+
+	if (f_reg != bdi->f_reg) {
+		dev_info(bdi->dev,
+			 "Fault: boost %d, charge %d, battery %d, ntc %d\n",
+			 !!(f_reg & BQ24190_REG_F_BOOST_FAULT_MASK),
+			 !!(f_reg & BQ24190_REG_F_CHRG_FAULT_MASK),
+			 !!(f_reg & BQ24190_REG_F_BAT_FAULT_MASK),
+			 !!(f_reg & BQ24190_REG_F_NTC_FAULT_MASK));
+
+		if ((bdi->f_reg & battery_mask_f) != (f_reg & battery_mask_f))
+			alert_battery = true;
+		if ((bdi->f_reg & ~battery_mask_f) != (f_reg & ~battery_mask_f))
+			alert_charger = true;
+
+		mutex_lock(&bdi->f_reg_lock);
+		bdi->f_reg = f_reg;
+		mutex_unlock(&bdi->f_reg_lock);
+	}
+
 	if (ss_reg != bdi->ss_reg) {
 		/*
 		 * The device is in host mode so when PG_STAT goes from 1->0
@@ -1228,37 +1256,6 @@ static void bq24190_check_status(struct bq24190_dev_info *bdi)
 
 		bdi->ss_reg = ss_reg;
 	}
-
-	mutex_lock(&bdi->f_reg_lock);
-
-	/* We need to read f_reg twice if fault is set to get correct value */
-	i = 0;
-	do {
-		ret = bq24190_read(bdi, BQ24190_REG_F, &f_reg);
-		if (ret < 0) {
-			mutex_unlock(&bdi->f_reg_lock);
-			dev_err(bdi->dev, "Can't read F reg: %d\n", ret);
-			return;
-		}
-	} while (f_reg && ++i < 2);
-
-	if (f_reg != bdi->f_reg) {
-		dev_info(bdi->dev,
-			 "Fault: boost %d, charge %d, battery %d, ntc %d\n",
-			 !!(f_reg & BQ24190_REG_F_BOOST_FAULT_MASK),
-			 !!(f_reg & BQ24190_REG_F_CHRG_FAULT_MASK),
-			 !!(f_reg & BQ24190_REG_F_BAT_FAULT_MASK),
-			 !!(f_reg & BQ24190_REG_F_NTC_FAULT_MASK));
-
-		if ((bdi->f_reg & battery_mask_f) != (f_reg & battery_mask_f))
-			alert_battery = true;
-		if ((bdi->f_reg & ~battery_mask_f) != (f_reg & ~battery_mask_f))
-			alert_charger = true;
-
-		bdi->f_reg = f_reg;
-	}
-
-	mutex_unlock(&bdi->f_reg_lock);
 
 	if (alert_charger)
 		power_supply_changed(bdi->charger);
