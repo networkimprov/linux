@@ -1,0 +1,20 @@
+Battery State Machine Support
+
+Optional Properties
+ - nominal-microvolt: dead battery voltage in microvolts
+ - design-microwatt-hours: battery design mWh in microwatts
+ - design-microamp-hours: battery design mAh in microamps
+
+Example:
+
+	bat: battery@0 {
+		nominal-microvolt = <3700000>;
+		design-microwatt-hours = <5290000>;
+		design-microamp-hours = <1430000>;
+	};
+
+	charger: charger@0 {
+		....
+		monitored-battery = <&bat>;
+		...
+	};
