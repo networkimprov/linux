@@ -832,7 +832,7 @@ new file mode 100644
 index 0000000..16b4619
 --- /dev/null
 +++ b/Documentation/devicetree/bindings/power/supply/bq24190.txt
-@@ -0,0 +1,27 @@
+@@ -0,0 +1,38 @@
 +Binding for TI BQ24190 Li-Ion Battery Charger
 +
 +Required properties:
@@ -850,13 +850,24 @@ index 0000000..16b4619
 +    is below minimum system voltage, the system will be regulated above this
 +    setting;
 +
++Set the OTG pin high to enable 500mA charge current on USB SDP port.
++
 +Example:
 +
 +bq24190 {
-+        compatible = "ti,bq24190";
-+        reg = <0x6a>;
-+        // interrupt configuration here
-+        ti,precharge-current = <256>;
-+        ti,termination-current = <128>;
-+        ti,minimum-sys-voltage = <3200>;
++	compatible = "ti,bq24190";
++	reg = <0x6a>;
++	// interrupt configuration here
++	ti,precharge-current = <256>;
++	ti,termination-current = <128>;
++	ti,minimum-sys-voltage = <3200>;
++};
++
++&twl_gpio {
++	otg {
++		gpio-hog;
++		gpios = <6 0>;
++		output-high;
++		line-name = "otg-gpio";
++	};
 +};
