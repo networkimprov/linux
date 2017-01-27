@@ -681,11 +681,11 @@ static int bq27xxx_battery_set_config(struct bq27xxx_device_info *di,
 		return ret;
 
 	ret  = bq27xxx_battery_update_dm_setting(di, BQ27XXX_DM_DESIGN_CAP,
-						 info->power / 1000);
+						 info->design_current_uah / 1000);
 	ret |= bq27xxx_battery_update_dm_setting(di, BQ27XXX_DM_DESIGN_ENERGY,
-						 info->energy / 1000);
+						 info->design_energy_uwh / 1000);
 	ret |= bq27xxx_battery_update_dm_setting(di, BQ27XXX_DM_TERMINATE_VOLTAGE,
-						 info->nominal_voltage / 1000);
+						 info->terminal_voltage_uv / 1000);
 
 	if (ret) {
 		dev_info(di->dev, "updating NVM settings\n");
