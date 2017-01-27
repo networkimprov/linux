@@ -504,17 +504,17 @@ int power_supply_get_battery_info(struct power_supply *psy,
 		return -ENODEV;
 
 	ret = of_property_read_u32(power_supply_battery_info_np,
-				   "nominal-microvolt", &info->nominal_voltage);
+				   "terminal-microvolt", &info->terminal_voltage_uv);
 	if (ret < 0)
 		return ret;
 
 	ret = of_property_read_u32(power_supply_battery_info_np,
-				   "design-microwatt-hours", &info->energy);
+				   "design-microwatt-hours", &info->design_energy_uwh);
 	if (ret < 0)
 		return ret;
 
 	return of_property_read_u32(power_supply_battery_info_np,
-				   "design-microamp-hours", &info->power);
+				   "design-microamp-hours", &info->design_current_uah);
 }
 EXPORT_SYMBOL_GPL(power_supply_get_battery_info);
 
