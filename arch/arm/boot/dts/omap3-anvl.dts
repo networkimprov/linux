@@ -274,7 +274,7 @@
 
 /{
   bat: battery {
-	nominal-microvolt = <3700000>;
+	terminal-microvolt = <3700000>;
 	design-microwatt-hours = <5290000>;
 	design-microamp-hours = <1430000>;
   };
