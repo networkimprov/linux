@@ -295,9 +295,9 @@ struct power_supply_info {
  */
 
 struct power_supply_battery_info {
-	int energy;		/* uWh */
-	int power;		/* uAh */
-	int nominal_voltage;	/* uV */
+	int design_energy_uwh;		/* microWatt-hours */
+	int design_current_uah;		/* microAmp-hours */
+	int terminal_voltage_uv; 	/* microVolts */
 };
 
 extern struct atomic_notifier_head power_supply_notifier;
