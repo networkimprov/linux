@@ -494,7 +494,10 @@ int power_supply_get_battery_info(struct power_supply *psy,
 {
 	struct device_node *np = psy->of_node;
 	struct device_node *power_supply_battery_info_np;
-	int ret;
+
+	info->design_energy_uwh = -EINVAL;
+	info->design_current_uah = -EINVAL;
+	info->terminal_voltage_uv = -EINVAL;
 
 	if (!np)
 		return -ENXIO;
@@ -502,8 +505,6 @@ int power_supply_get_battery_info(struct power_supply *psy,
 	power_supply_battery_info_np = of_parse_phandle(np, property, 0);
 	if (!power_supply_battery_info_np)
 		return -ENODEV;
-
-	memset(info, 0, sizeof(*info));
 
 	of_property_read_u32(power_supply_battery_info_np,
 			     "terminal-microvolt", &info->terminal_voltage_uv);
