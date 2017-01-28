@@ -1,0 +1,17 @@
+Trying this as an alternative to email...
+Include this commit in your next rev with any comments.
+
+BQ27xxx todo items
+
+1) reorder & squash the commits I added to this branch into others as appropriate
+
+2) squash the two power_supply battery_info commits; they're one conceptual unit
+
+3) consider squashing the _battery.c & battery_i2c.c commits
+
+4) pull over the 2 commits for devicetree property-units & bq27xxx-monitored-battery
+
+5) set_config checks that values are in range for chip as we did here
+   https://github.com/networkimprov/linux/commit/4c33a35
+
+6) set_config requires both/neither of design_cap and design_energy to be set to prevent conflict
