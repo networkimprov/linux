@@ -506,15 +506,19 @@ int power_supply_get_battery_info(struct power_supply *psy,
 	ret = of_property_read_u32(power_supply_battery_info_np,
 				   "terminal-microvolt", &info->terminal_voltage_uv);
 	if (ret < 0)
-		return ret;
+		info->terminal_voltage_uv = -EINVAL;
 
 	ret = of_property_read_u32(power_supply_battery_info_np,
 				   "design-microwatt-hours", &info->design_energy_uwh);
 	if (ret < 0)
-		return ret;
+		info->design_energy_uwh = -EINVAL;
 
-	return of_property_read_u32(power_supply_battery_info_np,
+	ret = of_property_read_u32(power_supply_battery_info_np,
 				   "design-microamp-hours", &info->design_current_uah);
+	if (ret < 0)
+		info->design_current_uah = -EINVAL;
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(power_supply_get_battery_info);
 
