@@ -1,0 +1,34 @@
+Battery Characteristics
+
+Required Properties:
+ - compatible: Must be "fixed-battery"
+
+Optional Properties:
+ - terminal-microvolt: dead battery voltage
+ - design-microwatt-hours: battery design energy
+ - design-microamp-hours: battery design capacity
+
+Batteries must be referenced by chargers and/or fuel-gauges
+using a phandle. The phandle's property should be named
+"monitored-battery".
+
+Example:
+
+	bat: battery {
+		compatible = "fixed-battery";
+		terminal-microvolt = <3700000>;
+		design-microwatt-hours = <5290000>;
+		design-microamp-hours = <1430000>;
+	};
+
+	charger: charger@0 {
+		....
+		monitored-battery = <&bat>;
+		...
+	};
+
+	fuel_gauge: fuel_gauge@0 {
+		....
+		monitored-battery = <&bat>;
+		...
+	};
