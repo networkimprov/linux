@@ -3,3 +3,28 @@
 
 2) Squash my commits into your patchset as appropriate.
    Note that the comment is the reason for: "devicetree: property-units: Acks & CCs"
+
+3) Text for [PATCH v5 0/7]
+
+Changes from v1:
+* add documentation for mWh and mAh property units
+* change devicetree entries to match new property units
+
+Changes from v2:
+* split i2c changes into respective patches
+* add documentation for battery information for fuel gauge
+* rebased documentation patches on change on the list
+* abstracted the battery configuration for the state machine
+  to an generic struct and platform data access function
+
+Changes from v3:
+* add "fixed-battery" compatible field to be be more consistant
+  with devicetree
+
+Changes from v4:
+* incorporate Rob's & Sebastian's input in Doc/devicetree/.../battery.txt
+* dts battery:nominal-microvolt -> terminal-microvolt
+* check power_supply_battery_info values in bq27xxx_battery.c
+* descriptive field names in power_supply_battery_info
+* default fields to -EINVAL in power_supply_battery_info
+* squash patches for power_supply_core.c & power_supply.h
