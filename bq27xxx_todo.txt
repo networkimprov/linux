@@ -1,0 +1,5 @@
+1) Let's version branch names to track mailing list subjects, so this is v5.3
+   I created anvl-v4.9-bq27xxx-nvram-v5.3, please push next rev there.
+
+2) Squash my commits into your patchset as appropriate.
+   Note that the comment is the reason for: "devicetree: property-units: Acks & CCs"
