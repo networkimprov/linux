@@ -1,0 +1,40 @@
+0) Please review my 15 patches at the tip of this branch. I'll squash them into yours
+   and submit v5 after resolving any comments and polishing the commit comments.
+
+1) Let's version branch names to track mailing list patch versions, so this is -5.3
+
+2) Both _battery.c and battery_i2c.c need new bq27xxx_access_methods to compile.
+   This is the reason for:
+   "power: bq27xxx_battery: define access methods to write chip registers"
+   "power: bq27xxx_battery_i2c: drop access methods from i2c patch"
+
+3) The comment, not the diff, is the reason for:
+   "devicetree: property-units: Acks & CCs"
+
+Text for [PATCH v5 0/7]
+
+Changes from v1:
+* add documentation for mWh and mAh property units
+* change devicetree entries to match new property units
+
+Changes from v2:
+* split i2c changes into respective patches
+* add documentation for battery information for fuel gauge
+* rebased documentation patches on change on the list
+* abstracted the battery configuration for the state machine
+  to an generic struct and platform data access function
+
+Changes from v3:
+* add "fixed-battery" compatible field to be be more consistant
+  with devicetree
+
+Changes from v4:
+* incorporate feedback into Documentation/devicetree/.../battery.txt
+* use sysfs property names in DT and power_supply_battery_info
+* default fields to -EINVAL in power_supply_battery_info
+* power_supply_get_battery_info() always looks for "monitored-battery"
+* power_supply_get_battery_info() emits a warning if !psy->of_node
+* squash patches for power_supply_battery_info
+* new patch for bq27xxx write methods
+* check power_supply_battery_info values in bq27xxx_battery.c
+* support voltage-max-design-microvolt
