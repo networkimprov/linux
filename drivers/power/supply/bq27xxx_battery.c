@@ -676,15 +676,17 @@ static int bq27xxx_battery_set_config(struct bq27xxx_device_info *di,
 {
 	int ret = bq27xxx_battery_read_dm_block(di,
 				BQ27XXX_GAS_GAUGING_STATE_SUBCLASS);
-
 	if (ret < 0)
 		return ret;
 
-	ret  = bq27xxx_battery_update_dm_setting(di, BQ27XXX_DM_DESIGN_CAP,
+	if (info->design_current_uah != -EINVAL)
+		ret  = bq27xxx_battery_update_dm_setting(di, BQ27XXX_DM_DESIGN_CAP,
 						 info->design_current_uah / 1000);
-	ret |= bq27xxx_battery_update_dm_setting(di, BQ27XXX_DM_DESIGN_ENERGY,
+	if (info->design_energy_uwh != -EINVAL)
+		ret |= bq27xxx_battery_update_dm_setting(di, BQ27XXX_DM_DESIGN_ENERGY,
 						 info->design_energy_uwh / 1000);
-	ret |= bq27xxx_battery_update_dm_setting(di, BQ27XXX_DM_TERMINATE_VOLTAGE,
+	if (info->terminal_voltage_uv != -EINVAL)
+		ret |= bq27xxx_battery_update_dm_setting(di, BQ27XXX_DM_TERMINATE_VOLTAGE,
 						 info->terminal_voltage_uv / 1000);
 
 	if (ret) {
@@ -967,6 +969,39 @@ void bq27xxx_battery_settings(struct bq27xxx_device_info *di)
 
 	if (power_supply_get_battery_info(di->bat, &info, "monitored-battery") < 0)
 		goto out;
+
+	if (info.design_energy_uwh > 0x7fff) {
+		info.design_energy_uwh = -EINVAL;
+		dev_err(di->dev,
+			"invalid monitored-battery:design-microwatt-hours %d\n",
+			info.design_energy_uwh);
+	}
+
+	if (info.design_current_uah > 0x7fff) {
+		info.design_current_uah = -EINVAL;
+		dev_err(di->dev,
+			"invalid monitored-battery:design-microamp-hours %d\n",
+			info.design_current_uah);
+	}
+
+	if ((info.terminal_voltage_uv < BQ27XXX_TERM_V_MIN
+	  || info.terminal_voltage_uv > BQ27XXX_TERM_V_MAX)
+	  && info.terminal_voltage_uv != -EINVAL) {
+		info.terminal_voltage_uv = -EINVAL;
+		dev_err(di->dev,
+			"invalid monitored-battery:terminal-microvolt %d\n",
+			info.terminal_voltage_uv);
+	}
+
+	if (info.design_energy_uwh == -EINVAL
+	 && info.design_current_uah == -EINVAL
+	 && info.terminal_voltage_uv == -EINVAL)
+		goto out;
+
+	if ((info.design_energy_uwh == -EINVAL && info.design_current_uah != -EINVAL)
+	 || (info.design_current_uah == -EINVAL && info.design_energy_uwh != -EINVAL))
+		dev_err(di->dev,
+			"missing or invalid monitored-battery design-* values\n");
 
 	bq27xxx_battery_set_config(di, &info);
 
