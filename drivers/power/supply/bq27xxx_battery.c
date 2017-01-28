@@ -681,7 +681,8 @@ static int bq27xxx_battery_set_config(struct bq27xxx_device_info *di,
 	if (ret < 0)
 		return ret;
 
-	if (info->design_current_uah != -EINVAL) {
+	if (info->design_current_uah != -EINVAL
+	 && info->design_energy_uwh  != -EINVAL) {
 		ret |= bq27xxx_battery_update_dm_setting(di, BQ27XXX_DM_DESIGN_CAP,
 						info->design_current_uah / 1000);
 		ret |= bq27xxx_battery_update_dm_setting(di, BQ27XXX_DM_DESIGN_ENERGY,
@@ -1002,9 +1003,9 @@ void bq27xxx_battery_settings(struct bq27xxx_device_info *di)
 			info.terminal_voltage_uv);
 	}
 
-	if (info.design_energy_uwh   == -EINVAL
-	 && info.design_current_uah  == -EINVAL
-	 && info.terminal_voltage_uv == -EINVAL)
+	if ((info.design_energy_uwh   == -EINVAL
+	  || info.design_current_uah  == -EINVAL)
+	  && info.terminal_voltage_uv == -EINVAL)
 		goto out;
 
 	bq27xxx_battery_set_config(di, &info);
