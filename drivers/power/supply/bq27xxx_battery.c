@@ -1001,7 +1001,7 @@ void bq27xxx_battery_settings(struct bq27xxx_device_info *di)
 	if ((info.design_energy_uwh == -EINVAL && info.design_current_uah != -EINVAL)
 	 || (info.design_current_uah == -EINVAL && info.design_energy_uwh != -EINVAL))
 		dev_err(di->dev,
-			"missing or invalid monitored-battery design-* values\n");
+			"missing or invalid monitored-battery:design-* values\n");
 
 	bq27xxx_battery_set_config(di, &info);
 
