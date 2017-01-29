@@ -1,10 +1,17 @@
 1) Let's version branch names to track mailing list subjects, so this is v5.3
    I created anvl-v4.9-bq27xxx-nvram-v5.3, please push next rev there.
 
-2) Squash my commits into your patchset as appropriate.
-   Note that the comment is the reason for: "devicetree: property-units: Acks & CCs"
+2) Both _battery.c and battery_i2c.c need new bq27xxx_access_methods to compile.
+   First squash this into _battery_i2c.c:
+   "power: supply: bq27xxx_battery_i2c: drop access methods from i2c patch"
+   In a second rebase pass, reorder this before _i2c.c patch (but don't squash), and edit its title:
+   "power: supply: bq27xxx_battery: add access methods to _battery.c patch"
 
-3) Text for [PATCH v5 0/7]
+3) Squash my other commits into your patchset as appropriate.
+   Note that the comment is the reason for:
+   "devicetree: property-units: Acks & CCs"
+
+4) Text for [PATCH v5 0/7]
 
 Changes from v1:
 * add documentation for mWh and mAh property units
