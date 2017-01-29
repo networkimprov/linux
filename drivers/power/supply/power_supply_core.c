@@ -489,8 +489,7 @@ EXPORT_SYMBOL_GPL(devm_power_supply_get_by_phandle);
 #endif /* CONFIG_OF */
 
 int power_supply_get_battery_info(struct power_supply *psy,
-				  struct power_supply_battery_info *info,
-				  const char *property)
+				  struct power_supply_battery_info *info)
 {
 	const char *compatible = "fixed-battery";
 	struct device_node *power_supply_battery_info_np;
@@ -500,11 +499,14 @@ int power_supply_get_battery_info(struct power_supply *psy,
 	info->design_current_uah = -EINVAL;
 	info->terminal_voltage_uv = -EINVAL;
 
-	if (!psy->of_node)
+	if (!psy->of_node) {
+		dev_warn(&psy->dev, "%s currently only supports devicetree\n",
+			 __func__);
 		return -ENXIO;
+	}
 
 	power_supply_battery_info_np = of_parse_phandle(psy->of_node,
-							property, 0);
+							"monitored-battery", 0);
 	if (!power_supply_battery_info_np)
 		return -ENODEV;
 
