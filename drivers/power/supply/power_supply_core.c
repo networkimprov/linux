@@ -492,18 +492,27 @@ int power_supply_get_battery_info(struct power_supply *psy,
 				  struct power_supply_battery_info *info,
 				  const char *property)
 {
-	struct device_node *np = psy->of_node;
+	const char *compatible = "fixed-battery";
 	struct device_node *power_supply_battery_info_np;
+	struct property *p;
 
 	info->design_energy_uwh = -EINVAL;
 	info->design_current_uah = -EINVAL;
 	info->terminal_voltage_uv = -EINVAL;
 
-	if (!np)
+	if (!psy->of_node)
 		return -ENXIO;
 
-	power_supply_battery_info_np = of_parse_phandle(np, property, 0);
+	power_supply_battery_info_np = of_parse_phandle(psy->of_node,
+							property, 0);
 	if (!power_supply_battery_info_np)
+		return -ENODEV;
+
+	p = of_find_property(power_supply_battery_info_np, "compatible", NULL);
+	if (!p || !p->value)
+		return -ENODEV;
+
+	if (strcmp(compatible, p->value))
 		return -ENODEV;
 
 	of_property_read_u32(power_supply_battery_info_np,
