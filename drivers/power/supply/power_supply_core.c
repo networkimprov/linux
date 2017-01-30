@@ -491,9 +491,9 @@ EXPORT_SYMBOL_GPL(devm_power_supply_get_by_phandle);
 int power_supply_get_battery_info(struct power_supply *psy,
 				  struct power_supply_battery_info *info)
 {
-	const char *compatible = "fixed-battery";
-	struct device_node *power_supply_battery_info_np;
-	struct property *p;
+	struct device_node *battery_np;
+	const char *value;
+	int err;
 
 	info->design_energy_uwh = -EINVAL;
 	info->design_current_uah = -EINVAL;
@@ -505,24 +505,23 @@ int power_supply_get_battery_info(struct power_supply *psy,
 		return -ENXIO;
 	}
 
-	power_supply_battery_info_np = of_parse_phandle(psy->of_node,
-							"monitored-battery", 0);
-	if (!power_supply_battery_info_np)
+	battery_np = of_parse_phandle(psy->of_node, "monitored-battery", 0);
+	if (!battery_np)
 		return -ENODEV;
 
-	p = of_find_property(power_supply_battery_info_np, "compatible", NULL);
-	if (!p || !p->value)
+	err = of_property_read_string(battery_np, "compatible", &value);
+	if (err)
+		return err;
+
+	if (strcmp("fixed-battery", value))
 		return -ENODEV;
 
-	if (strcmp(compatible, p->value))
-		return -ENODEV;
-
-	of_property_read_u32(power_supply_battery_info_np,
-			     "terminal-microvolt", &info->terminal_voltage_uv);
-	of_property_read_u32(power_supply_battery_info_np,
-			     "design-microwatt-hours", &info->design_energy_uwh);
-	of_property_read_u32(power_supply_battery_info_np,
-			     "design-microamp-hours", &info->design_current_uah);
+	of_property_read_u32(battery_np, "terminal-microvolt",
+			     &info->terminal_voltage_uv);
+	of_property_read_u32(battery_np, "design-microwatt-hours",
+			     &info->design_energy_uwh);
+	of_property_read_u32(battery_np, "design-microamp-hours",
+			     &info->design_current_uah);
 
 	return 0;
 }
