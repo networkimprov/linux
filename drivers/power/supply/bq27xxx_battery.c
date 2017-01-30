@@ -974,33 +974,33 @@ void bq27xxx_battery_settings(struct bq27xxx_device_info *di)
 	if (power_supply_get_battery_info(di->bat, &info) < 0)
 		goto out;
 
-	if ((info.design_energy_uwh  == -EINVAL
-	  || info.design_current_uah == -EINVAL)
-	  && info.design_current_uah != info.design_energy_uwh)
-		dev_err(di->dev,
-			"missing monitored-battery:design-*-hours value\n");
+	if (info.design_energy_uwh != info.design_current_uah) {
+		if (info.design_energy_uwh == -EINVAL)
+			dev_warn(di->dev,
+				"missing battery:design-microwatt-hours\n");
+		else if (info.design_current_uah == -EINVAL)
+			dev_warn(di->dev,
+				"missing battery:design-microamp-hours\n");
+	}
 
 	if (info.design_energy_uwh > 0x7fff * 1000) {
-		info.design_energy_uwh = -EINVAL;
-		dev_err(di->dev,
-			"invalid monitored-battery:design-microwatt-hours %d\n",
+		dev_err(di->dev, "invalid battery:design-microwatt-hours %d\n",
 			info.design_energy_uwh);
+		info.design_energy_uwh = -EINVAL;
 	}
 
 	if (info.design_current_uah > 0x7fff * 1000) {
-		info.design_current_uah = -EINVAL;
-		dev_err(di->dev,
-			"invalid monitored-battery:design-microamp-hours %d\n",
+		dev_err(di->dev, "invalid battery:design-microamp-hours %d\n",
 			info.design_current_uah);
+		info.design_current_uah = -EINVAL;
 	}
 
 	if ((info.terminal_voltage_uv < BQ27XXX_TERM_V_MIN * 1000
 	  || info.terminal_voltage_uv > BQ27XXX_TERM_V_MAX * 1000)
 	  && info.terminal_voltage_uv != -EINVAL) {
-		info.terminal_voltage_uv = -EINVAL;
-		dev_err(di->dev,
-			"invalid monitored-battery:terminal-microvolt %d\n",
+		dev_err(di->dev, "invalid battery:terminal-microvolt %d\n",
 			info.terminal_voltage_uv);
+		info.terminal_voltage_uv = -EINVAL;
 	}
 
 	if ((info.design_energy_uwh   == -EINVAL
