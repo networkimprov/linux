@@ -289,15 +289,18 @@ struct power_supply_info {
 };
 
 /*
- * This is the recommended struct to specify static battery parameters.
- * Power supply class itself doesn't use this, but it implements access
- * that most platform drivers should use for consistency.
+ * This is the recommended struct to manage static battery parameters,
+ * populated by power_supply_get_battery_info(). Most platform drivers should
+ * use these for consistency.
+ * Its field names must correspond to elements in enum power_supply_property.
+ * The default field value is -EINVAL.
+ * Power supply class itself doesn't use this.
  */
 
 struct power_supply_battery_info {
-	int design_energy_uwh;		/* microWatt-hours */
-	int design_current_uah;		/* microAmp-hours */
-	int terminal_voltage_uv; 	/* microVolts */
+	int energy_full_design_uwh;	/* microWatt-hours */
+	int charge_full_design_uah;	/* microAmp-hours */
+	int voltage_min_design_uv;	/* microVolts */
 };
 
 extern struct atomic_notifier_head power_supply_notifier;
