@@ -681,17 +681,17 @@ static int bq27xxx_battery_set_config(struct bq27xxx_device_info *di,
 	if (ret < 0)
 		return ret;
 
-	if (info->design_current_uah != -EINVAL
-	 && info->design_energy_uwh  != -EINVAL) {
+	if (info->charge_full_design_uah != -EINVAL
+	 && info->energy_full_design_uwh != -EINVAL) {
 		ret |= bq27xxx_battery_update_dm_setting(di, BQ27XXX_DM_DESIGN_CAP,
-						info->design_current_uah / 1000);
+						info->charge_full_design_uah / 1000);
 		ret |= bq27xxx_battery_update_dm_setting(di, BQ27XXX_DM_DESIGN_ENERGY,
-						info->design_energy_uwh / 1000);
+						info->energy_full_design_uwh / 1000);
 	}
 
-	if (info->terminal_voltage_uv != -EINVAL)
+	if (info->voltage_min_design_uv != -EINVAL)
 		ret |= bq27xxx_battery_update_dm_setting(di, BQ27XXX_DM_TERMINATE_VOLTAGE,
-						info->terminal_voltage_uv / 1000);
+						info->voltage_min_design_uv / 1000);
 
 	if (ret) {
 		dev_info(di->dev, "updating NVM settings\n");
@@ -974,38 +974,38 @@ void bq27xxx_battery_settings(struct bq27xxx_device_info *di)
 	if (power_supply_get_battery_info(di->bat, &info) < 0)
 		goto out;
 
-	if (info.design_energy_uwh != info.design_current_uah) {
-		if (info.design_energy_uwh == -EINVAL)
+	if (info.energy_full_design_uwh != info.charge_full_design_uah) {
+		if (info.energy_full_design_uwh == -EINVAL)
 			dev_warn(di->dev,
 				"missing battery:design-microwatt-hours\n");
-		else if (info.design_current_uah == -EINVAL)
+		else if (info.charge_full_design_uah == -EINVAL)
 			dev_warn(di->dev,
 				"missing battery:design-microamp-hours\n");
 	}
 
-	if (info.design_energy_uwh > 0x7fff * 1000) {
+	if (info.energy_full_design_uwh > 0x7fff * 1000) {
 		dev_err(di->dev, "invalid battery:design-microwatt-hours %d\n",
-			info.design_energy_uwh);
-		info.design_energy_uwh = -EINVAL;
+			info.energy_full_design_uwh);
+		info.energy_full_design_uwh = -EINVAL;
 	}
 
-	if (info.design_current_uah > 0x7fff * 1000) {
+	if (info.charge_full_design_uah > 0x7fff * 1000) {
 		dev_err(di->dev, "invalid battery:design-microamp-hours %d\n",
-			info.design_current_uah);
-		info.design_current_uah = -EINVAL;
+			info.charge_full_design_uah);
+		info.charge_full_design_uah = -EINVAL;
 	}
 
-	if ((info.terminal_voltage_uv < BQ27XXX_TERM_V_MIN * 1000
-	  || info.terminal_voltage_uv > BQ27XXX_TERM_V_MAX * 1000)
-	  && info.terminal_voltage_uv != -EINVAL) {
+	if ((info.voltage_min_design_uv < BQ27XXX_TERM_V_MIN * 1000
+	  || info.voltage_min_design_uv > BQ27XXX_TERM_V_MAX * 1000)
+	  && info.voltage_min_design_uv != -EINVAL) {
 		dev_err(di->dev, "invalid battery:terminal-microvolt %d\n",
-			info.terminal_voltage_uv);
-		info.terminal_voltage_uv = -EINVAL;
+			info.voltage_min_design_uv);
+		info.voltage_min_design_uv = -EINVAL;
 	}
 
-	if ((info.design_energy_uwh   == -EINVAL
-	  || info.design_current_uah  == -EINVAL)
-	  && info.terminal_voltage_uv == -EINVAL)
+	if ((info.energy_full_design_uwh == -EINVAL
+	  || info.charge_full_design_uah == -EINVAL)
+	  && info.voltage_min_design_uv  == -EINVAL)
 		goto out;
 
 	bq27xxx_battery_set_config(di, &info);
