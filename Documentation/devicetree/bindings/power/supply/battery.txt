@@ -4,9 +4,10 @@ Required Properties:
  - compatible: Must be "fixed-battery"
 
 Optional Properties:
- - terminal-microvolt: dead battery voltage
- - design-microwatt-hours: battery design energy
- - design-microamp-hours: battery design capacity
+ - voltage-min-design-microvolt: drained battery voltage
+ - voltage-max-design-microvolt: charged battery voltage
+ - energy-full-design-microwatt-hours: battery design energy
+ - charge-full-design-microamp-hours: battery design capacity
 
 Batteries must be referenced by chargers and/or fuel-gauges
 using a phandle. The phandle's property should be named
@@ -16,9 +17,10 @@ Example:
 
 	bat: battery {
 		compatible = "fixed-battery";
-		terminal-microvolt = <3700000>;
-		design-microwatt-hours = <5290000>;
-		design-microamp-hours = <1430000>;
+		voltage-min-design-microvolt = <3200000>;
+		voltage-max-design-microvolt = <4200000>;
+		energy-full-design-microwatt-hours = <5290000>;
+		charge-full-design-microamp-hours = <1430000>;
 	};
 
 	charger: charger@0 {
