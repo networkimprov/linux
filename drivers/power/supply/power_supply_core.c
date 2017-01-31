@@ -496,9 +496,10 @@ int power_supply_get_battery_info(struct power_supply *psy,
 	const char *value;
 	int err;
 
-	info->design_energy_uwh = -EINVAL;
-	info->design_current_uah = -EINVAL;
-	info->terminal_voltage_uv = -EINVAL;
+	info->energy_full_design_uwh = -EINVAL;
+	info->charge_full_design_uah = -EINVAL;
+	info->voltage_min_design_uv  = -EINVAL;
+	info->voltage_max_design_uv  = -EINVAL;
 
 	if (!psy->of_node)
 		return -ENXIO;
@@ -514,12 +515,14 @@ int power_supply_get_battery_info(struct power_supply *psy,
 	if (strcmp("fixed-battery", value))
 		return -ENODEV;
 
-	of_property_read_u32(battery_np, "terminal-microvolt",
-			     &info->terminal_voltage_uv);
-	of_property_read_u32(battery_np, "design-microwatt-hours",
-			     &info->design_energy_uwh);
-	of_property_read_u32(battery_np, "design-microamp-hours",
-			     &info->design_current_uah);
+	of_property_read_u32(battery_np, "energy-full-design-microwatt-hours",
+			     &info->energy_full_design_uwh);
+	of_property_read_u32(battery_np, "charge-full-design-microamp-hours",
+			     &info->charge_full_design_uah);
+	of_property_read_u32(battery_np, "voltage-min-design-microvolt",
+			     &info->voltage_min_design_uv);
+	of_property_read_u32(battery_np, "voltage-max-design-microvolt",
+			     &info->voltage_max_design_uv);
 
 	return 0;
 }
