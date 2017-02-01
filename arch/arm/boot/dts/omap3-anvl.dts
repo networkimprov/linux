@@ -274,9 +274,10 @@
 
 /{
   bat: battery {
-	terminal-microvolt = <3700000>;
-	design-microwatt-hours = <5290000>;
-	design-microamp-hours = <1430000>;
+	voltage-min-design-microvolt = <3300000>;
+	voltage-max-design-microvolt = <4180000>;
+	energy-full-design-microwatt-hours = <5290000>;
+	charge-full-design-microamp-hours = <1430000>;
   };
 };
 
