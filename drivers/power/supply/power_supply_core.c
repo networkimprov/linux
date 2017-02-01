@@ -489,8 +489,7 @@ EXPORT_SYMBOL_GPL(devm_power_supply_get_by_phandle);
 #endif /* CONFIG_OF */
 
 int power_supply_get_battery_info(struct power_supply *psy,
-				  struct power_supply_battery_info *info,
-				  const char *property)
+				  struct power_supply_battery_info *info)
 {
 	struct device_node *battery_np;
 	const char *value;
@@ -501,10 +500,13 @@ int power_supply_get_battery_info(struct power_supply *psy,
 	info->voltage_min_design_uv  = -EINVAL;
 	info->voltage_max_design_uv  = -EINVAL;
 
-	if (!psy->of_node)
+	if (!psy->of_node) {
+		dev_warn(&psy->dev, "%s currently only supports devicetree\n",
+			 __func__);
 		return -ENXIO;
+	}
 
-	battery_np = of_parse_phandle(psy->of_node, property, 0);
+	battery_np = of_parse_phandle(psy->of_node, "monitored-battery", 0);
 	if (!battery_np)
 		return -ENODEV;
 
