@@ -453,8 +453,10 @@ static struct {
 static DEFINE_MUTEX(bq27xxx_list_lock);
 static LIST_HEAD(bq27xxx_battery_devices);
 
-#define BQ27XXX_TERM_V_MIN	2800
-#define BQ27XXX_TERM_V_MAX	3700
+#define BQ27XXX_MIN_V_MIN	2800
+#define BQ27XXX_MIN_V_MAX	3700
+#define BQ27XXX_MAX_V_MIN	0
+#define BQ27XXX_MAX_V_MAX	5000
 
 #define BQ27XXX_BLOCK_DATA_CLASS	0x3E
 #define BQ27XXX_DATA_BLOCK		0x3F
@@ -468,6 +470,7 @@ enum bq27xxx_dm_subclass_index {
 	BQ27XXX_DM_DESIGN_CAP = 0,
 	BQ27XXX_DM_DESIGN_ENERGY,
 	BQ27XXX_DM_TERMINATE_VOLTAGE,
+	BQ27XXX_DM_V_AT_CHARGE_TERM,
 	BQ27XXX_NUM_IDX,
 };
 
@@ -483,6 +486,7 @@ static struct bq27xxx_dm_regs bq27425_dm_subclass_regs[] = {
 	{ BQ27XXX_GAS_GAUGING_STATE_SUBCLASS, 12, "design-capacity" },
 	{ BQ27XXX_GAS_GAUGING_STATE_SUBCLASS, 14, "design-energy" },
 	{ BQ27XXX_GAS_GAUGING_STATE_SUBCLASS, 18, "terminate-voltage" },
+	{ BQ27XXX_GAS_GAUGING_STATE_SUBCLASS, 36, "v-at-charge-termination" },
 };
 
 static struct bq27xxx_dm_regs *bq27xxx_dm_subclass_regs[] = {
@@ -692,6 +696,10 @@ static int bq27xxx_battery_set_config(struct bq27xxx_device_info *di,
 	if (info->voltage_min_design_uv != -EINVAL)
 		ret |= bq27xxx_battery_update_dm_setting(di, BQ27XXX_DM_TERMINATE_VOLTAGE,
 						info->voltage_min_design_uv / 1000);
+
+	if (info->voltage_max_design_uv != -EINVAL)
+		ret |= bq27xxx_battery_update_dm_setting(di, BQ27XXX_DM_V_AT_CHARGE_TERM,
+						info->voltage_max_design_uv / 1000);
 
 	if (ret) {
 		dev_info(di->dev, "updating NVM settings\n");
@@ -995,17 +1003,26 @@ void bq27xxx_battery_settings(struct bq27xxx_device_info *di)
 		info.charge_full_design_uah = -EINVAL;
 	}
 
-	if ((info.voltage_min_design_uv < BQ27XXX_TERM_V_MIN * 1000
-	  || info.voltage_min_design_uv > BQ27XXX_TERM_V_MAX * 1000)
+	if ((info.voltage_min_design_uv < BQ27XXX_MIN_V_MIN * 1000
+	  || info.voltage_min_design_uv > BQ27XXX_MIN_V_MAX * 1000)
 	  && info.voltage_min_design_uv != -EINVAL) {
 		dev_err(di->dev, "invalid battery:voltage-min-design-microvolt %d\n",
 			info.voltage_min_design_uv);
 		info.voltage_min_design_uv = -EINVAL;
 	}
 
+	if ((info.voltage_max_design_uv < BQ27XXX_MAX_V_MIN * 1000
+	  || info.voltage_max_design_uv > BQ27XXX_MAX_V_MAX * 1000)
+	  && info.voltage_max_design_uv != -EINVAL) {
+		dev_err(di->dev, "invalid battery:voltage-max-design-microvolt %d\n",
+			info.voltage_max_design_uv);
+		info.voltage_max_design_uv = -EINVAL;
+	}
+
 	if ((info.energy_full_design_uwh == -EINVAL
 	  || info.charge_full_design_uah == -EINVAL)
-	  && info.voltage_min_design_uv  == -EINVAL)
+	  && info.voltage_min_design_uv  == -EINVAL
+	  && info.voltage_max_design_uv  == -EINVAL)
 		goto out;
 
 	bq27xxx_battery_set_config(di, &info);
