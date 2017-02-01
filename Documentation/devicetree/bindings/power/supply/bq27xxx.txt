@@ -32,7 +32,7 @@ Optional properties:
 - monitored-battery: phandle of battery information devicetree node
 
   See Documentation/devicetree/bindings/power/supply/battery.txt
-  If either of the referenced battery's *-full-design-hours properties are set,
+  If either of the referenced battery's *-full-design-*-hours properties are set,
   then both must be.
 
 Example:
