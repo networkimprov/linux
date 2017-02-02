@@ -467,11 +467,11 @@ static LIST_HEAD(bq27xxx_battery_devices);
 #define BQ27XXX_SOFT_RESET		0x42
 
 enum bq27xxx_dm_subclass_index {
-	BQ27XXX_DM_DESIGN_CAP = 0,
+	BQ27XXX_DM_DESIGN_CAPACITY = 0,
 	BQ27XXX_DM_DESIGN_ENERGY,
 	BQ27XXX_DM_TERMINATE_VOLTAGE,
 	BQ27XXX_DM_V_AT_CHARGE_TERM,
-	BQ27XXX_NUM_IDX,
+	BQ27XXX_DM_END,
 };
 
 struct bq27xxx_dm_regs {
@@ -483,10 +483,14 @@ struct bq27xxx_dm_regs {
 #define BQ27XXX_GAS_GAUGING_STATE_SUBCLASS	82
 
 static struct bq27xxx_dm_regs bq27425_dm_subclass_regs[] = {
-	{ BQ27XXX_GAS_GAUGING_STATE_SUBCLASS, 12, "design-capacity" },
-	{ BQ27XXX_GAS_GAUGING_STATE_SUBCLASS, 14, "design-energy" },
-	{ BQ27XXX_GAS_GAUGING_STATE_SUBCLASS, 18, "terminate-voltage" },
-	{ BQ27XXX_GAS_GAUGING_STATE_SUBCLASS, 36, "v-at-charge-termination" },
+	[BQ27XXX_DM_DESIGN_CAPACITY] =
+		{ BQ27XXX_GAS_GAUGING_STATE_SUBCLASS, 12, "design-capacity" },
+	[BQ27XXX_DM_DESIGN_ENERGY] =
+		{ BQ27XXX_GAS_GAUGING_STATE_SUBCLASS, 14, "design-energy" },
+	[BQ27XXX_DM_TERMINATE_VOLTAGE] =
+		{ BQ27XXX_GAS_GAUGING_STATE_SUBCLASS, 18, "terminate-voltage" },
+	[BQ27XXX_DM_V_AT_CHARGE_TERM] =
+		{ BQ27XXX_GAS_GAUGING_STATE_SUBCLASS, 36, "v-at-charge-termination" },
 };
 
 static struct bq27xxx_dm_regs *bq27xxx_dm_subclass_regs[] = {
@@ -593,7 +597,7 @@ static int bq27xxx_battery_print_config(struct bq27xxx_device_info *di)
 	if (ret < 0)
 		return ret;
 
-	for (i = 0; i < BQ27XXX_NUM_IDX; i++) {
+	for (i = 0; i < BQ27XXX_DM_END; i++) {
 		int val;
 
 		if (reg->subclass_id != BQ27XXX_GAS_GAUGING_STATE_SUBCLASS)
@@ -687,19 +691,23 @@ static int bq27xxx_battery_set_config(struct bq27xxx_device_info *di,
 
 	if (info->charge_full_design_uah != -EINVAL
 	 && info->energy_full_design_uwh != -EINVAL) {
-		ret |= bq27xxx_battery_update_dm_setting(di, BQ27XXX_DM_DESIGN_CAP,
-						info->charge_full_design_uah / 1000);
-		ret |= bq27xxx_battery_update_dm_setting(di, BQ27XXX_DM_DESIGN_ENERGY,
-						info->energy_full_design_uwh / 1000);
+		ret |= bq27xxx_battery_update_dm_setting(di,
+					BQ27XXX_DM_DESIGN_CAPACITY,
+					info->charge_full_design_uah / 1000);
+		ret |= bq27xxx_battery_update_dm_setting(di,
+					BQ27XXX_DM_DESIGN_ENERGY,
+					info->energy_full_design_uwh / 1000);
 	}
 
 	if (info->voltage_min_design_uv != -EINVAL)
-		ret |= bq27xxx_battery_update_dm_setting(di, BQ27XXX_DM_TERMINATE_VOLTAGE,
-						info->voltage_min_design_uv / 1000);
+		ret |= bq27xxx_battery_update_dm_setting(di,
+					BQ27XXX_DM_TERMINATE_VOLTAGE,
+					info->voltage_min_design_uv / 1000);
 
 	if (info->voltage_max_design_uv != -EINVAL)
-		ret |= bq27xxx_battery_update_dm_setting(di, BQ27XXX_DM_V_AT_CHARGE_TERM,
-						info->voltage_max_design_uv / 1000);
+		ret |= bq27xxx_battery_update_dm_setting(di,
+					BQ27XXX_DM_V_AT_CHARGE_TERM,
+					info->voltage_max_design_uv / 1000);
 
 	if (ret) {
 		dev_info(di->dev, "updating NVM settings\n");
