@@ -9,6 +9,9 @@ Optional Properties:
  - energy-full-design-microwatt-hours: battery design energy
  - charge-full-design-microamp-hours: battery design capacity
 
+Future Properties must be named for the corresponding elements in
+enum power_supply_property, defined in include/linux/power_supply.h.
+
 Batteries must be referenced by chargers and/or fuel-gauges
 using a phandle. The phandle's property should be named
 "monitored-battery".
