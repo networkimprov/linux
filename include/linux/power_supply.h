@@ -152,6 +152,9 @@ enum power_supply_property {
 	POWER_SUPPLY_PROP_MODEL_NAME,
 	POWER_SUPPLY_PROP_MANUFACTURER,
 	POWER_SUPPLY_PROP_SERIAL_NUMBER,
+/* where to place these? inserting above causes sysfs errors */
+	POWER_SUPPLY_PROP_PRECHARGE_CURRENT,
+	POWER_SUPPLY_PROP_ENDCHARGE_CURRENT,
 };
 
 enum power_supply_type {
@@ -301,6 +304,8 @@ struct power_supply_battery_info {
 	int energy_full_design_uwh;	/* microWatt-hours */
 	int charge_full_design_uah;	/* microAmp-hours */
 	int voltage_min_design_uv;	/* microVolts */
+	int precharge_current_ua;	/* microAmps */
+	int endcharge_current_ua;       /* microAmps */
 };
 
 extern struct atomic_notifier_head power_supply_notifier;
