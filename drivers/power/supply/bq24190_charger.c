@@ -1386,16 +1386,6 @@ static int bq24190_probe(struct i2c_client *client,
 
 	i2c_set_clientdata(client, bdi);
 
-	if (dev->of_node)
-		ret = bq24190_setup_dt(bdi);
-	else
-		ret = bq24190_setup_pdata(bdi, pdata);
-
-	if (ret) {
-		dev_err(dev, "Can't get irq info\n");
-		return -EINVAL;
-	}
-
 	pm_runtime_enable(dev);
 	pm_runtime_use_autosuspend(dev);
 	pm_runtime_set_autosuspend_delay(dev, 600);
@@ -1403,12 +1393,6 @@ static int bq24190_probe(struct i2c_client *client,
 	if (ret < 0) {
 		dev_err(dev, "pm_runtime_get failed: %i\n", ret);
 		goto out1;
-	}
-
-	ret = bq24190_hw_init(bdi);
-	if (ret < 0) {
-		dev_err(dev, "Hardware init failed\n");
-		goto out2;
 	}
 
 	charger_cfg.drv_data = bdi;
@@ -1429,6 +1413,23 @@ static int bq24190_probe(struct i2c_client *client,
 		dev_err(dev, "Can't register battery\n");
 		ret = PTR_ERR(bdi->battery);
 		goto out3;
+	}
+
+	if (dev->of_node)
+		ret = bq24190_setup_dt(bdi);
+	else
+		ret = bq24190_setup_pdata(bdi, pdata);
+
+	if (ret) {
+		dev_err(dev, "Can't get irq info\n");
+		ret = -EINVAL;
+		goto out4;
+	}
+
+	ret = bq24190_hw_init(bdi);
+	if (ret < 0) {
+		dev_err(dev, "Hardware init failed\n");
+		goto out4;
 	}
 
 	ret = bq24190_sysfs_create_group(bdi);
@@ -1459,6 +1460,8 @@ out5:
 	bq24190_sysfs_remove_group(bdi);
 
 out4:
+	if (bdi->gpio_int)
+		gpio_free(bdi->gpio_int);
 	power_supply_unregister(bdi->battery);
 
 out3:
@@ -1470,8 +1473,6 @@ out2:
 out1:
 	pm_runtime_dont_use_autosuspend(dev);
 	pm_runtime_disable(dev);
-	if (bdi->gpio_int)
-		gpio_free(bdi->gpio_int);
 	return ret;
 }
 
