@@ -1,0 +1,47 @@
+Binding for TI BQ24190 Li-Ion Battery Charger
+
+Required properties:
+- compatible: Should contain one of the following:
+    * "ti,bq24190"
+- reg: integer, I2C address of the device.
+
+Optional properties:
+- monitored-battery: phandle of battery information devicetree node
+    These battery properties are relevant:
+    + precharge-current-microamp: maximum charge current during precharge
+      phase (typically 20% of battery capacity).
+    + endcharge-current-microamp: a charge cycle terminates when the
+      battery voltage is above recharge threshold, and the current is below
+      this setting (typically 10% of battery capacity).
+    See Documentation/devicetree/bindings/power/supply/battery.txt
+- ti,system-minimum-microvolt: when power is connected and the battery
+    is below minimum system voltage, the system will be regulated above this
+    setting.
+
+Other features:
+- Use gpio-hog to set the OTG pin high to enable 500mA charge current on USB SDP port.
+
+Example:
+
+bat: battery {
+	compatible = "simple-battery";
+	precharge-current-microamp = <256000>;
+	endcharge-current-microamp = <128000>;
+};
+
+bq24190 charger@6a {
+	compatible = "ti,bq24190";
+	reg = <0x6a>;
+	// interrupt configuration here
+	monitored-battery = <&bat>;
+	ti,system-minimum-microvolt = <3200000>;
+};
+
+&twl_gpio {
+	otg {
+		gpio-hog;
+		gpios = <6 0>;
+		output-high;
+		line-name = "otg-gpio";
+	};
+};
