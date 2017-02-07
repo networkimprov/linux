@@ -274,6 +274,7 @@
 
 /{
   bat: battery {
+	compatible = "fixed-battery";
 	voltage-min-design-microvolt = <3300000>;
 	voltage-max-design-microvolt = <4180000>;
 	energy-full-design-microwatt-hours = <5290000>;
