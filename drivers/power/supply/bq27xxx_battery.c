@@ -667,7 +667,7 @@ static int bq27xxx_battery_write_nvram(struct bq27xxx_device_info *di,
 		return ret;
 
 	for (i = 0; i < BQ27XXX_BLK_NUM; i++) {
-		int offset = di->dm_buf + i * BQ27XXX_BLK_SIZE;
+		u8 *offset = di->dm_buf + i * BQ27XXX_BLK_SIZE;
 		
 		ret = di->bus.write(di, BQ27XXX_DATA_BLOCK, i, true);
 		if (ret < 0)
