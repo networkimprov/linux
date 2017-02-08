@@ -654,22 +654,22 @@ static int bq27xxx_battery_write_nvram(struct bq27xxx_device_info *di,
 	int i, ret;
 
 	ret = di->bus.write(di, BQ27XXX_REG_CTRL, BQ27XXX_SET_CFGUPDATE, false);
-	if (ret)
+	if (ret < 0)
 		return ret;
 
 	ret = di->bus.write(di, BQ27XXX_BLOCK_DATA_CONTROL, 0, true);
-	if (ret)
+	if (ret < 0)
 		return ret;
 
 	ret = di->bus.write(di, BQ27XXX_BLOCK_DATA_CLASS, subclass, true);
-	if (ret)
+	if (ret < 0)
 		return ret;
 
 	for (i = 0; i < BQ27XXX_BLK_NUM; i++) {
 		int offset = di->dm_buf + i * BQ27XXX_BLK_SIZE;
 		
 		ret = di->bus.write(di, BQ27XXX_DATA_BLOCK, i, true);
-		if (ret)
+		if (ret < 0)
 			return ret;
 
 		ret = di->bus.write_bulk(di, BQ27XXX_BLOCK_DATA,
