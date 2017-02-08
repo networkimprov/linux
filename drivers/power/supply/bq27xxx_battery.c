@@ -592,18 +592,21 @@ static int bq27xxx_battery_read_dm_block(struct bq27xxx_device_info *di,
 static int bq27xxx_battery_print_config(struct bq27xxx_device_info *di)
 {
 	struct bq27xxx_dm_regs *reg = bq27xxx_dm_subclass_regs[di->chip];
-	int ret, i;
-
-	ret = bq27xxx_battery_read_dm_block(di,
-			BQ27XXX_GAS_GAUGING_STATE_SUBCLASS, 0);
-	if (ret < 0)
-		return ret;
+	int ret, i, block = -EINVAL;
 
 	for (i = 0; i < BQ27XXX_DM_END; i++) {
 		int val;
 
 		if (reg->subclass_id != BQ27XXX_GAS_GAUGING_STATE_SUBCLASS)
 			continue;
+
+		if ((reg->offset / BQ27XXX_BLOCK_SIZE) != block) {
+			block = reg->offset / BQ27XXX_BLOCK_SIZE;
+			ret = bq27xxx_battery_read_dm_block(di,
+					BQ27XXX_GAS_GAUGING_STATE_SUBCLASS, block);
+			if (ret < 0)
+				return ret;
+		}
 
 		val = be16_to_cpup((u16 *) &di->buffer[reg->offset % BQ27XXX_BLOCK_SIZE]);
 
@@ -706,15 +709,26 @@ static int bq27xxx_battery_set_config(struct bq27xxx_device_info *di,
 					BQ27XXX_DM_TERMINATE_VOLTAGE,
 					info->voltage_min_design_uv / 1000);
 
+	if (ret) {
+		dev_info(di->dev, "updating NVM (block 0) settings\n");
+		return bq27xxx_battery_write_nvram(di,
+				BQ27XXX_GAS_GAUGING_STATE_SUBCLASS, 0);
+	}
+
+	ret = bq27xxx_battery_read_dm_block(di,
+				BQ27XXX_GAS_GAUGING_STATE_SUBCLASS, 1);
+	if (ret < 0)
+		return ret;
+
 	if (info->voltage_max_design_uv != -EINVAL)
 		ret |= bq27xxx_battery_update_dm_setting(di,
 					BQ27XXX_DM_V_AT_CHARGE_TERM,
 					info->voltage_max_design_uv / 1000);
 
 	if (ret) {
-		dev_info(di->dev, "updating NVM settings\n");
+		dev_info(di->dev, "updating NVM (block 1) settings\n");
 		return bq27xxx_battery_write_nvram(di,
-				BQ27XXX_GAS_GAUGING_STATE_SUBCLASS, 0);
+				BQ27XXX_GAS_GAUGING_STATE_SUBCLASS, 1);
 	}
 
 	return 0;
