@@ -466,6 +466,9 @@ static LIST_HEAD(bq27xxx_battery_devices);
 #define BQ27XXX_SET_CFGUPDATE		0x13
 #define BQ27XXX_SOFT_RESET		0x42
 
+#define BQ27XXX_BLK_SIZE	32
+#define BQ27XXX_BLK_NUM		2
+
 enum bq27xxx_dm_subclass_index {
 	BQ27XXX_DM_DESIGN_CAPACITY = 0,
 	BQ27XXX_DM_DESIGN_ENERGY,
@@ -564,8 +567,9 @@ static int bq27xxx_battery_set_seal_state(struct bq27xxx_device_info *di,
 static int bq27xxx_battery_read_dm_block(struct bq27xxx_device_info *di,
 					     int subclass)
 {
-	int ret = di->bus.write(di, BQ27XXX_REG_CTRL, 0, false);
+	int i, ret;
 
+	ret = di->bus.write(di, BQ27XXX_REG_CTRL, 0, false);
 	if (ret < 0)
 		return ret;
 
@@ -577,14 +581,20 @@ static int bq27xxx_battery_read_dm_block(struct bq27xxx_device_info *di,
 	if (ret < 0)
 		return ret;
 
-	ret = di->bus.write(di, BQ27XXX_DATA_BLOCK, 0, true);
-	if (ret < 0)
-		return ret;
+	for (i = 0; i < BQ27XXX_BLK_NUM; ++i) {
+		ret = di->bus.write(di, BQ27XXX_DATA_BLOCK, i, true);
+		if (ret < 0)
+			return ret;
 
-	usleep_range(1000, 1500);
+		usleep_range(1000, 1500);
 
-	return di->bus.read_bulk(di, BQ27XXX_BLOCK_DATA,
-				(u8 *) &di->buffer, sizeof(di->buffer));
+		ret = di->bus.read_bulk(di, BQ27XXX_BLOCK_DATA,
+					di->dm_buf + i * BQ27XXX_BLK_SIZE,
+					BQ27XXX_BLK_SIZE);
+		if (ret < 0)
+			return ret;
+	}
+	return 0;
 }
 
 static int bq27xxx_battery_print_config(struct bq27xxx_device_info *di)
@@ -597,17 +607,15 @@ static int bq27xxx_battery_print_config(struct bq27xxx_device_info *di)
 	if (ret < 0)
 		return ret;
 
-	for (i = 0; i < BQ27XXX_DM_END; i++) {
+	for (i = 0; i < BQ27XXX_DM_END; i++, reg++) {
 		int val;
 
 		if (reg->subclass_id != BQ27XXX_GAS_GAUGING_STATE_SUBCLASS)
 			continue;
 
-		val = be16_to_cpup((u16 *) &di->buffer[reg->offset]);
+		val = be16_to_cpup((u16 *) &di->dm_buf[reg->offset]);
 
 		dev_info(di->dev, "settings for %s set at %d\n", reg->name, val);
-
-		reg++;
 	}
 
 	return 0;
@@ -617,7 +625,7 @@ static bool bq27xxx_battery_update_dm_setting(struct bq27xxx_device_info *di,
 			      unsigned int reg, unsigned int val)
 {
 	struct bq27xxx_dm_regs *dm_reg = &bq27xxx_dm_subclass_regs[di->chip][reg];
-	u16 *prev = (u16 *) &di->buffer[dm_reg->offset];
+	u16 *prev = (u16 *) &di->dm_buf[dm_reg->offset];
 
 	if (be16_to_cpup(prev) == val)
 		return false;
@@ -627,13 +635,12 @@ static bool bq27xxx_battery_update_dm_setting(struct bq27xxx_device_info *di,
 	return true;
 }
 
-static u8 bq27xxx_battery_checksum(struct bq27xxx_device_info *di)
+static u8 bq27xxx_battery_checksum(u8 *data)
 {
-	u8 *data = (u8 *) &di->buffer;
 	u16 sum = 0;
 	int i;
 
-	for (i = 0; i < sizeof(di->buffer); i++) {
+	for (i = 0; i < BQ27XXX_BLK_SIZE; i++) {
 		sum += data[i];
 		sum &= 0xff;
 	}
@@ -644,7 +651,7 @@ static u8 bq27xxx_battery_checksum(struct bq27xxx_device_info *di)
 static int bq27xxx_battery_write_nvram(struct bq27xxx_device_info *di,
 					   unsigned int subclass)
 {
-	int ret;
+	int i, ret;
 
 	ret = di->bus.write(di, BQ27XXX_REG_CTRL, BQ27XXX_SET_CFGUPDATE, false);
 	if (ret)
@@ -658,25 +665,28 @@ static int bq27xxx_battery_write_nvram(struct bq27xxx_device_info *di,
 	if (ret)
 		return ret;
 
-	ret = di->bus.write(di, BQ27XXX_DATA_BLOCK, 0, true);
-	if (ret)
-		return ret;
+	for (i = 0; i < BQ27XXX_BLK_NUM; i++) {
+		int offset = di->dm_buf + i * BQ27XXX_BLK_SIZE;
+		
+		ret = di->bus.write(di, BQ27XXX_DATA_BLOCK, i, true);
+		if (ret)
+			return ret;
 
-	ret = di->bus.write_bulk(di, BQ27XXX_BLOCK_DATA,
-				(u8 *) &di->buffer, sizeof(di->buffer));
-	if (ret < 0)
-		return ret;
+		ret = di->bus.write_bulk(di, BQ27XXX_BLOCK_DATA,
+					 offset, BQ27XXX_BLK_SIZE);
+		if (ret < 0)
+			return ret;
 
-	usleep_range(1000, 1500);
+		usleep_range(1000, 1500);
 
-	di->bus.write(di, BQ27XXX_BLOCK_DATA_CHECKSUM,
-				bq27xxx_battery_checksum(di), true);
+		ret = di->bus.write(di, BQ27XXX_BLOCK_DATA_CHECKSUM,
+				    bq27xxx_battery_checksum(offset), true);
+		if (ret < 0)
+			return ret;
 
-	usleep_range(1000, 1500);
-
-	di->bus.write(di, BQ27XXX_REG_CTRL, BQ27XXX_SOFT_RESET, false);
-
-	return 0;
+		usleep_range(1000, 1500);
+	}
+	return di->bus.write(di, BQ27XXX_REG_CTRL, BQ27XXX_SOFT_RESET, false);
 }
 
 static int bq27xxx_battery_set_config(struct bq27xxx_device_info *di,
@@ -981,6 +991,7 @@ static int bq27xxx_battery_read_health(struct bq27xxx_device_info *di)
 
 void bq27xxx_battery_settings(struct bq27xxx_device_info *di)
 {
+	u8 block_buf[BQ27XXX_BLK_NUM * BQ27XXX_BLK_SIZE];
 	struct power_supply_battery_info info = {};
 
 	/* functions don't exist for writing data so abort */
@@ -992,6 +1003,7 @@ void bq27xxx_battery_settings(struct bq27xxx_device_info *di)
 		return;
 
 	bq27xxx_battery_set_seal_state(di, false);
+	di->dm_buf = block_buf;
 
 	if (power_supply_get_battery_info(di->bat, &info) < 0)
 		goto out;
@@ -1043,6 +1055,7 @@ void bq27xxx_battery_settings(struct bq27xxx_device_info *di)
 
 out:
 	bq27xxx_battery_print_config(di);
+	di->dm_buf = NULL;
 	bq27xxx_battery_set_seal_state(di, true);
 }
 
