@@ -5,7 +5,6 @@ Required Properties:
 
 Optional Properties:
  - voltage-min-design-microvolt: drained battery voltage
- - voltage-max-design-microvolt: charged battery voltage
  - energy-full-design-microwatt-hours: battery design energy
  - charge-full-design-microamp-hours: battery design capacity
 
@@ -21,7 +20,6 @@ Example:
 	bat: battery {
 		compatible = "fixed-battery";
 		voltage-min-design-microvolt = <3200000>;
-		voltage-max-design-microvolt = <4200000>;
 		energy-full-design-microwatt-hours = <5290000>;
 		charge-full-design-microamp-hours = <1430000>;
 	};
