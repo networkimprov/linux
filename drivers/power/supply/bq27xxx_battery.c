@@ -614,6 +614,7 @@ static bool bq27xxx_battery_update_dm_setting(struct bq27xxx_device_info *di,
 	struct bq27xxx_dm_regs *dm_reg = &bq27xxx_dm_subclass_regs[di->chip][reg];
 	u16 *prev = (u16 *) &di->buffer[dm_reg->offset];
 
+	dev_info(di->dev, "update dm %u, %u\n", be16_to_cpup(prev), val); // debugging
 	if (be16_to_cpup(prev) == val)
 		return false;
 
