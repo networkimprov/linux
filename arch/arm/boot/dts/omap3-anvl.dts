@@ -278,6 +278,8 @@
 	voltage-min-design-microvolt = <3300000>;
 	energy-full-design-microwatt-hours = <5290000>;
 	charge-full-design-microamp-hours = <1430000>;
+	precharge-current-microamp = <256000>;
+	charge-term-current-microamp = <128000>;
   };
 };
 
@@ -330,6 +332,8 @@
 	bq24190: charger@6b {
 		reg = <0x6b>;
 		compatible = "ti,bq24190";
+		monitored-battery = <&bat>;
+		ti,system-minimum-microvolt = <3200000>;
 		pinctrl-0 = <&bq24190_irq_pin>;
 		pinctrl-names = "default";
 		interrupts-extended = <&gpio5 24 IRQ_TYPE_EDGE_FALLING
