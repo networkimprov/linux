@@ -91,7 +91,8 @@ static int bq27xxx_battery_i2c_write(struct bq27xxx_device_info *di, u8 reg,
 	msg.addr = client->addr;
 	msg.flags = 0;
 
-	return i2c_transfer(client->adapter, &msg, 1) == 1 ? 0 : -EINVAL;
+	return i2c_transfer(client->adapter, &msg, 1) == 1 ?
+		0 : -EINVAL;
 }
 
 static int bq27xxx_battery_i2c_bulk_read(struct bq27xxx_device_info *di, u8 reg,
@@ -102,7 +103,8 @@ static int bq27xxx_battery_i2c_bulk_read(struct bq27xxx_device_info *di, u8 reg,
 	if (!client->adapter)
 		return -ENODEV;
 
-	return i2c_smbus_read_i2c_block_data(client, reg, len, data);
+	return i2c_smbus_read_i2c_block_data(client, reg, len, data) == len ?
+		0 : -EINVAL;
 }
 
 static int bq27xxx_battery_i2c_bulk_write(struct bq27xxx_device_info *di,
@@ -123,7 +125,8 @@ static int bq27xxx_battery_i2c_bulk_write(struct bq27xxx_device_info *di,
 	msg.flags = 0;
 	msg.len = len + 1;
 
-	return i2c_transfer(client->adapter, &msg, 1) == 1 ? 0 : -EINVAL;
+	return i2c_transfer(client->adapter, &msg, 1) == 1 ?
+		0 : -EINVAL;
 }
 
 static int bq27xxx_battery_i2c_probe(struct i2c_client *client,
