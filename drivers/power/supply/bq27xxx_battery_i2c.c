@@ -162,14 +162,14 @@ static int bq27xxx_battery_i2c_probe(struct i2c_client *client,
 	di->bus.read_bulk = bq27xxx_battery_i2c_bulk_read;
 	di->bus.write_bulk = bq27xxx_battery_i2c_bulk_write;
 
+	i2c_set_clientdata(client, di);
+
 	ret = bq27xxx_battery_setup(di);
 	if (ret)
 		goto err_failed;
 
 	/* Schedule a polling after about 1 min */
 	schedule_delayed_work(&di->work, 60 * HZ);
-
-	i2c_set_clientdata(client, di);
 
 	if (client->irq) {
 		ret = devm_request_threaded_irq(&client->dev, client->irq,
