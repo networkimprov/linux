@@ -496,6 +496,10 @@ static unsigned int bq27xxx_unseal_keys[] = {
 	[BQ27425] = 0x04143672,
 };
 
+struct bq27xxx_dm_buf {
+	u8 a[32];
+};
+
 static int poll_interval_param_set(const char *val, const struct kernel_param *kp)
 {
 	struct bq27xxx_device_info *di;
@@ -541,7 +545,7 @@ static inline int bq27xxx_read(struct bq27xxx_device_info *di, int reg_index,
 }
 
 static int bq27xxx_battery_set_seal_state(struct bq27xxx_device_info *di,
-					      bool state)
+					  bool state)
 {
 	unsigned int key = bq27xxx_unseal_keys[di->chip];
 	int ret;
@@ -557,10 +561,11 @@ static int bq27xxx_battery_set_seal_state(struct bq27xxx_device_info *di,
 }
 
 static int bq27xxx_battery_read_dm_block(struct bq27xxx_device_info *di,
-					     int subclass)
+					 int subclass, struct bq27xxx_dm_buf *buf)
 {
-	int ret = di->bus.write(di, BQ27XXX_REG_CTRL, 0, false);
+	int ret;
 
+	ret = di->bus.write(di, BQ27XXX_REG_CTRL, 0, false);
 	if (ret < 0)
 		return ret;
 
@@ -578,41 +583,40 @@ static int bq27xxx_battery_read_dm_block(struct bq27xxx_device_info *di,
 
 	usleep_range(1000, 1500);
 
-	return di->bus.read_bulk(di, BQ27XXX_BLOCK_DATA,
-				(u8 *) &di->buffer, sizeof(di->buffer));
+	return di->bus.read_bulk(di, BQ27XXX_BLOCK_DATA, buf->a, sizeof buf->a);
 }
 
 static int bq27xxx_battery_print_config(struct bq27xxx_device_info *di)
 {
+	struct bq27xxx_dm_buf buf;
 	struct bq27xxx_dm_regs *reg = bq27xxx_dm_subclass_regs[di->chip];
 	int ret, i;
 
 	ret = bq27xxx_battery_read_dm_block(di,
-			BQ27XXX_GAS_GAUGING_STATE_SUBCLASS);
+			BQ27XXX_GAS_GAUGING_STATE_SUBCLASS, &buf);
 	if (ret < 0)
 		return ret;
 
-	for (i = 0; i < BQ27XXX_DM_END; i++) {
+	for (i = 0; i < BQ27XXX_DM_END; i++, reg++) {
 		int val;
 
 		if (reg->subclass_id != BQ27XXX_GAS_GAUGING_STATE_SUBCLASS)
 			continue;
 
-		val = be16_to_cpup((u16 *) &di->buffer[reg->offset]);
+		val = be16_to_cpup((u16 *) &buf.a[reg->offset]);
 
 		dev_info(di->dev, "settings for %s set at %d\n", reg->name, val);
-
-		reg++;
 	}
 
 	return 0;
 }
 
 static bool bq27xxx_battery_update_dm_setting(struct bq27xxx_device_info *di,
-			      unsigned int reg, unsigned int val)
+					      struct bq27xxx_dm_buf *buf,
+					      unsigned int reg, unsigned int val)
 {
 	struct bq27xxx_dm_regs *dm_reg = &bq27xxx_dm_subclass_regs[di->chip][reg];
-	u16 *prev = (u16 *) &di->buffer[dm_reg->offset];
+	u16 *prev = (u16 *) &buf->a[dm_reg->offset];
 
 	dev_info(di->dev, "update dm %u, %u\n", be16_to_cpup(prev), val); // debugging
 	if (be16_to_cpup(prev) == val)
@@ -623,14 +627,13 @@ static bool bq27xxx_battery_update_dm_setting(struct bq27xxx_device_info *di,
 	return true;
 }
 
-static u8 bq27xxx_battery_checksum(struct bq27xxx_device_info *di)
+static u8 bq27xxx_battery_checksum(struct bq27xxx_dm_buf *buf)
 {
-	u8 *data = (u8 *) &di->buffer;
 	u16 sum = 0;
 	int i;
 
-	for (i = 0; i < sizeof(di->buffer); i++) {
-		sum += data[i];
+	for (i = 0; i < sizeof buf->a; i++) {
+		sum += buf->a[i];
 		sum &= 0xff;
 	}
 
@@ -638,72 +641,73 @@ static u8 bq27xxx_battery_checksum(struct bq27xxx_device_info *di)
 }
 
 static int bq27xxx_battery_write_nvram(struct bq27xxx_device_info *di,
-					   unsigned int subclass)
+				       unsigned int subclass,
+				       struct bq27xxx_dm_buf *buf)
 {
 	int ret;
 
 	ret = di->bus.write(di, BQ27XXX_REG_CTRL, BQ27XXX_SET_CFGUPDATE, false);
-	if (ret)
+	if (ret < 0)
 		return ret;
 
 	ret = di->bus.write(di, BQ27XXX_BLOCK_DATA_CONTROL, 0, true);
-	if (ret)
+	if (ret < 0)
 		return ret;
 
 	ret = di->bus.write(di, BQ27XXX_BLOCK_DATA_CLASS, subclass, true);
-	if (ret)
+	if (ret < 0)
 		return ret;
 
 	ret = di->bus.write(di, BQ27XXX_DATA_BLOCK, 0, true);
-	if (ret)
+	if (ret < 0)
 		return ret;
 
-	ret = di->bus.write_bulk(di, BQ27XXX_BLOCK_DATA,
-				(u8 *) &di->buffer, sizeof(di->buffer));
+	ret = di->bus.write_bulk(di, BQ27XXX_BLOCK_DATA, buf->a, sizeof buf->a);
 	if (ret < 0)
 		return ret;
 
 	usleep_range(1000, 1500);
 
-	di->bus.write(di, BQ27XXX_BLOCK_DATA_CHECKSUM,
-				bq27xxx_battery_checksum(di), true);
+	ret = di->bus.write(di, BQ27XXX_BLOCK_DATA_CHECKSUM,
+			    bq27xxx_battery_checksum(buf), true);
+	if (ret < 0)
+		return ret;
 
 	usleep_range(1000, 1500);
 
-	di->bus.write(di, BQ27XXX_REG_CTRL, BQ27XXX_SOFT_RESET, false);
-
-	return 0;
+	return di->bus.write(di, BQ27XXX_REG_CTRL, BQ27XXX_SOFT_RESET, false);
 }
 
 static int bq27xxx_battery_set_config(struct bq27xxx_device_info *di,
 				      struct power_supply_battery_info *info)
 {
+	struct bq27xxx_dm_buf buf;
 	int ret;
 
 	ret = bq27xxx_battery_read_dm_block(di,
-				BQ27XXX_GAS_GAUGING_STATE_SUBCLASS);
+				BQ27XXX_GAS_GAUGING_STATE_SUBCLASS, &buf);
 	if (ret < 0)
 		return ret;
 
 	if (info->charge_full_design_uah != -EINVAL
 	 && info->energy_full_design_uwh != -EINVAL) {
-		ret |= bq27xxx_battery_update_dm_setting(di,
+		ret |= bq27xxx_battery_update_dm_setting(di, &buf,
 					BQ27XXX_DM_DESIGN_CAPACITY,
 					info->charge_full_design_uah / 1000);
-		ret |= bq27xxx_battery_update_dm_setting(di,
+		ret |= bq27xxx_battery_update_dm_setting(di, &buf,
 					BQ27XXX_DM_DESIGN_ENERGY,
 					info->energy_full_design_uwh / 1000);
 	}
 
 	if (info->voltage_min_design_uv != -EINVAL)
-		ret |= bq27xxx_battery_update_dm_setting(di,
+		ret |= bq27xxx_battery_update_dm_setting(di, &buf,
 					BQ27XXX_DM_TERMINATE_VOLTAGE,
 					info->voltage_min_design_uv / 1000);
 
 	if (ret) {
 		dev_info(di->dev, "updating NVM settings\n");
 		return bq27xxx_battery_write_nvram(di,
-				BQ27XXX_GAS_GAUGING_STATE_SUBCLASS);
+				BQ27XXX_GAS_GAUGING_STATE_SUBCLASS, &buf);
 	}
 
 	return 0;
