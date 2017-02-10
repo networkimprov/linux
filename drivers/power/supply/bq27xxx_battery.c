@@ -655,9 +655,9 @@ static u8 bq27xxx_battery_checksum(struct bq27xxx_dm_buf *buf)
 	return 0xff - sum;
 }
 
-static int bq27xxx_battery_write_nvram(struct bq27xxx_device_info *di,
-				       int subclass,
-				       struct bq27xxx_dm_buf *buf)
+static int bq27xxx_battery_write_dm_block(struct bq27xxx_device_info *di,
+					  int subclass,
+					  struct bq27xxx_dm_buf *buf)
 {
 	int ret;
 
@@ -721,8 +721,8 @@ static int bq27xxx_battery_set_config(struct bq27xxx_device_info *di,
 
 	if (ret) {
 		dev_info(di->dev, "updating NVM settings\n");
-		return bq27xxx_battery_write_nvram(di, BQ27XXX_SUBCLASS_STATE_NVM,
-						   &buf);
+		return bq27xxx_battery_write_dm_block(di, BQ27XXX_SUBCLASS_STATE_NVM,
+						      &buf);
 	}
 
 	return 0;
