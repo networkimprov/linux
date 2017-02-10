@@ -24,13 +24,13 @@ Example:
 		charge-full-design-microamp-hours = <1430000>;
 	};
 
-	charger: charger@0 {
+	charger: charger@11 {
 		....
 		monitored-battery = <&bat>;
 		...
 	};
 
-	fuel_gauge: fuel_gauge@0 {
+	fuel_gauge: fuel-gauge@22 {
 		....
 		monitored-battery = <&bat>;
 		...
