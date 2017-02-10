@@ -474,18 +474,24 @@ enum bq27xxx_dm_subclass_index {
 struct bq27xxx_dm_regs {
 	unsigned int subclass_id;
 	unsigned int offset;
+	unsigned int bytes;
 	char *name;
 };
 
 #define BQ27XXX_SUBCLASS_STATE_NVM	82
+#define BQ27XXX_SUPPORTED(r) ( \
+	   r->subclass_id == BQ27XXX_SUBCLASS_STATE_NVM \
+	&& r->offset <= 30 \
+	&& r->bytes == 2 \
+)
 
 static struct bq27xxx_dm_regs bq27425_dm_subclass_regs[] = {
 	[BQ27XXX_DM_DESIGN_CAPACITY] =
-		{ BQ27XXX_SUBCLASS_STATE_NVM, 12, "design-capacity" },
+		{ BQ27XXX_SUBCLASS_STATE_NVM, 12, 2, "design-capacity" },
 	[BQ27XXX_DM_DESIGN_ENERGY] =
-		{ BQ27XXX_SUBCLASS_STATE_NVM, 14, "design-energy" },
+		{ BQ27XXX_SUBCLASS_STATE_NVM, 14, 2, "design-energy" },
 	[BQ27XXX_DM_TERMINATE_VOLTAGE] =
-		{ BQ27XXX_SUBCLASS_STATE_NVM, 18, "terminate-voltage" },
+		{ BQ27XXX_SUBCLASS_STATE_NVM, 18, 2, "terminate-voltage" },
 };
 
 static struct bq27xxx_dm_regs *bq27xxx_dm_subclass_regs[] = {
@@ -600,12 +606,14 @@ static int bq27xxx_battery_print_config(struct bq27xxx_device_info *di)
 	for (i = 0; i < BQ27XXX_DM_END; i++, reg++) {
 		int val;
 
-		if (reg->subclass_id != BQ27XXX_SUBCLASS_STATE_NVM)
+		if (!BQ27XXX_SUPPORTED(reg)) {
+			dev_warn(di->dev, "unsupported config register %s\n", reg->name);
 			continue;
+		}
 
 		val = be16_to_cpup((u16 *) &buf.a[reg->offset]);
 
-		dev_info(di->dev, "settings for %s set at %d\n", reg->name, val);
+		dev_info(di->dev, "config register %s set at %d\n", reg->name, val);
 	}
 
 	return 0;
@@ -613,10 +621,15 @@ static int bq27xxx_battery_print_config(struct bq27xxx_device_info *di)
 
 static bool bq27xxx_battery_update_dm_setting(struct bq27xxx_device_info *di,
 					      struct bq27xxx_dm_buf *buf,
-					      unsigned int reg, unsigned int val)
+					      int reg_id, unsigned int val)
 {
-	struct bq27xxx_dm_regs *dm_reg = &bq27xxx_dm_subclass_regs[di->chip][reg];
-	u16 *prev = (u16 *) &buf->a[dm_reg->offset];
+	struct bq27xxx_dm_regs *reg = &bq27xxx_dm_subclass_regs[di->chip][reg_id];
+	u16 *prev;
+
+	if (!BQ27XXX_SUPPORTED(reg))
+		return false;
+
+	prev = (u16 *) &buf->a[reg->offset];
 
 	dev_info(di->dev, "update dm %u, %u\n", be16_to_cpup(prev), val); // debugging
 	if (be16_to_cpup(prev) == val)
