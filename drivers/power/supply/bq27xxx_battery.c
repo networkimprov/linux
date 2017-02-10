@@ -620,10 +620,10 @@ static int bq27xxx_battery_print_config(struct bq27xxx_device_info *di)
 	return 0;
 }
 
-static bool bq27xxx_battery_update_dm_setting(struct bq27xxx_device_info *di,
-					      struct bq27xxx_dm_buf *buf,
-					      enum bq27xxx_dm_reg_id reg_id,
-					      unsigned int val)
+static bool bq27xxx_battery_update_dm_block(struct bq27xxx_device_info *di,
+					    struct bq27xxx_dm_buf *buf,
+					    enum bq27xxx_dm_reg_id reg_id,
+					    unsigned int val)
 {
 	struct bq27xxx_dm_reg *reg = &bq27xxx_dm_regs[di->chip][reg_id];
 	u16 *prev;
@@ -706,16 +706,16 @@ static int bq27xxx_battery_set_config(struct bq27xxx_device_info *di,
 
 	if (info->charge_full_design_uah != -EINVAL
 	 && info->energy_full_design_uwh != -EINVAL) {
-		ret |= bq27xxx_battery_update_dm_setting(di, &buf,
+		ret |= bq27xxx_battery_update_dm_block(di, &buf,
 					BQ27XXX_DM_DESIGN_CAPACITY,
 					info->charge_full_design_uah / 1000);
-		ret |= bq27xxx_battery_update_dm_setting(di, &buf,
+		ret |= bq27xxx_battery_update_dm_block(di, &buf,
 					BQ27XXX_DM_DESIGN_ENERGY,
 					info->energy_full_design_uwh / 1000);
 	}
 
 	if (info->voltage_min_design_uv != -EINVAL)
-		ret |= bq27xxx_battery_update_dm_setting(di, &buf,
+		ret |= bq27xxx_battery_update_dm_block(di, &buf,
 					BQ27XXX_DM_TERMINATE_VOLTAGE,
 					info->voltage_min_design_uv / 1000);
 
