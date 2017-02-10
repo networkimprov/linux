@@ -463,6 +463,11 @@ static LIST_HEAD(bq27xxx_battery_devices);
 #define BQ27XXX_BLOCK_DATA_CONTROL	0x61
 #define BQ27XXX_SET_CFGUPDATE		0x13
 #define BQ27XXX_SOFT_RESET		0x42
+#define BQ27XXX_SUBCLASS_STATE_NVM	82
+
+struct bq27xxx_dm_buf {
+	u8 a[32];
+};
 
 struct bq27xxx_dm_reg {
 	unsigned int subclass_id;
@@ -471,7 +476,6 @@ struct bq27xxx_dm_reg {
 	char *name;
 };
 
-#define BQ27XXX_SUBCLASS_STATE_NVM	82
 #define BQ27XXX_DM_SUPPORTED(r) ( \
 	   r->subclass_id == BQ27XXX_SUBCLASS_STATE_NVM \
 	&& r->offset <= 30 \
@@ -500,10 +504,6 @@ static struct bq27xxx_dm_reg *bq27xxx_dm_subclass_regs[] = {
 
 static unsigned int bq27xxx_unseal_keys[] = {
 	[BQ27425] = 0x04143672,
-};
-
-struct bq27xxx_dm_buf {
-	u8 a[32];
 };
 
 static int poll_interval_param_set(const char *val, const struct kernel_param *kp)
