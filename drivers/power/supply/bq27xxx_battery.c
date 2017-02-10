@@ -477,15 +477,15 @@ struct bq27xxx_dm_regs {
 	char *name;
 };
 
-#define BQ27XXX_GAS_GAUGING_STATE_SUBCLASS	82
+#define BQ27XXX_SUBCLASS_STATE_NVM	82
 
 static struct bq27xxx_dm_regs bq27425_dm_subclass_regs[] = {
 	[BQ27XXX_DM_DESIGN_CAPACITY] =
-		{ BQ27XXX_GAS_GAUGING_STATE_SUBCLASS, 12, "design-capacity" },
+		{ BQ27XXX_SUBCLASS_STATE_NVM, 12, "design-capacity" },
 	[BQ27XXX_DM_DESIGN_ENERGY] =
-		{ BQ27XXX_GAS_GAUGING_STATE_SUBCLASS, 14, "design-energy" },
+		{ BQ27XXX_SUBCLASS_STATE_NVM, 14, "design-energy" },
 	[BQ27XXX_DM_TERMINATE_VOLTAGE] =
-		{ BQ27XXX_GAS_GAUGING_STATE_SUBCLASS, 18, "terminate-voltage" },
+		{ BQ27XXX_SUBCLASS_STATE_NVM, 18, "terminate-voltage" },
 };
 
 static struct bq27xxx_dm_regs *bq27xxx_dm_subclass_regs[] = {
@@ -592,15 +592,15 @@ static int bq27xxx_battery_print_config(struct bq27xxx_device_info *di)
 	struct bq27xxx_dm_regs *reg = bq27xxx_dm_subclass_regs[di->chip];
 	int ret, i;
 
-	ret = bq27xxx_battery_read_dm_block(di,
-			BQ27XXX_GAS_GAUGING_STATE_SUBCLASS, &buf);
+	ret = bq27xxx_battery_read_dm_block(di, BQ27XXX_SUBCLASS_STATE_NVM,
+					    &buf);
 	if (ret < 0)
 		return ret;
 
 	for (i = 0; i < BQ27XXX_DM_END; i++, reg++) {
 		int val;
 
-		if (reg->subclass_id != BQ27XXX_GAS_GAUGING_STATE_SUBCLASS)
+		if (reg->subclass_id != BQ27XXX_SUBCLASS_STATE_NVM)
 			continue;
 
 		val = be16_to_cpup((u16 *) &buf.a[reg->offset]);
@@ -684,8 +684,8 @@ static int bq27xxx_battery_set_config(struct bq27xxx_device_info *di,
 	struct bq27xxx_dm_buf buf;
 	int ret;
 
-	ret = bq27xxx_battery_read_dm_block(di,
-				BQ27XXX_GAS_GAUGING_STATE_SUBCLASS, &buf);
+	ret = bq27xxx_battery_read_dm_block(di, BQ27XXX_SUBCLASS_STATE_NVM,
+					    &buf);
 	if (ret < 0)
 		return ret;
 
@@ -706,8 +706,8 @@ static int bq27xxx_battery_set_config(struct bq27xxx_device_info *di,
 
 	if (ret) {
 		dev_info(di->dev, "updating NVM settings\n");
-		return bq27xxx_battery_write_nvram(di,
-				BQ27XXX_GAS_GAUGING_STATE_SUBCLASS, &buf);
+		return bq27xxx_battery_write_nvram(di, BQ27XXX_SUBCLASS_STATE_NVM,
+						   &buf);
 	}
 
 	return 0;
