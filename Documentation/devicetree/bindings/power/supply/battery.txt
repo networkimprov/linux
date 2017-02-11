@@ -15,6 +15,11 @@ Batteries must be referenced by chargers and/or fuel-gauges
 using a phandle. The phandle's property should be named
 "monitored-battery".
 
+Driver code should call power_supply_get_battery_info() to obtain
+battery properties via monitored-battery. For details see:
+  drivers/power/supply/power_supply_core.c
+  drivers/power/supply/bq27xxx_battery.c
+
 Example:
 
 	bat: battery {
