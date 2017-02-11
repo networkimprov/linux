@@ -470,16 +470,16 @@ struct bq27xxx_dm_buf {
 };
 
 struct bq27xxx_dm_reg {
-	unsigned int subclass_id;
+	unsigned int subclass;
 	unsigned int offset;
 	unsigned int bytes;
-	char *name;
+	const char *name;
 };
 
 #define BQ27XXX_DM_SUPPORTED(r) ( \
-	   r->subclass_id == BQ27XXX_SUBCLASS_STATE_NVM \
-	&& r->offset <= 30 \
-	&& r->bytes == 2 \
+	   (r)->subclass == BQ27XXX_SUBCLASS_STATE_NVM \
+	&& (r)->offset <= 30 \
+	&& (r)->bytes == 2 \
 )
 
 enum bq27xxx_dm_reg_id {
