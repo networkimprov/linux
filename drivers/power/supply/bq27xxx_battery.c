@@ -456,11 +456,16 @@ static LIST_HEAD(bq27xxx_battery_devices);
 #define BQ27XXX_TERM_V_MIN	2800
 #define BQ27XXX_TERM_V_MAX	3700
 
-#define BQ27XXX_BLOCK_DATA_CLASS	0x3E
+/* writable registers */
+#define BQ27XXX_DATA_CLASS		0x3E
 #define BQ27XXX_DATA_BLOCK		0x3F
 #define BQ27XXX_BLOCK_DATA		0x40
 #define BQ27XXX_BLOCK_DATA_CHECKSUM	0x60
 #define BQ27XXX_BLOCK_DATA_CONTROL	0x61
+
+/* writable register params */
+#define BQ27XXX_SEALED			0x20
+#define BQ27XXX_UNSEAL_KEY		0x04143672
 #define BQ27XXX_SET_CFGUPDATE		0x13
 #define BQ27XXX_SOFT_RESET		0x42
 #define BQ27XXX_SUBCLASS_STATE_NVM	82
@@ -502,9 +507,6 @@ static struct bq27xxx_dm_reg *bq27xxx_dm_regs[] = {
 	[BQ27425] = bq27425_dm_regs,
 };
 
-static unsigned int bq27xxx_unseal_keys[] = {
-	[BQ27425] = 0x04143672,
-};
 
 static int poll_interval_param_set(const char *val, const struct kernel_param *kp)
 {
@@ -553,19 +555,20 @@ static inline int bq27xxx_read(struct bq27xxx_device_info *di, int reg_index,
 static int bq27xxx_battery_set_seal_state(struct bq27xxx_device_info *di,
 					  bool state)
 {
-	unsigned int key = bq27xxx_unseal_keys[di->chip];
+	u8 reg_ctrl = di->regs[BQ27XXX_REG_CTRL];
+	unsigned int key = BQ27XXX_UNSEAL_KEY;
 	int ret;
 
 	if (state) {
-		ret = di->bus.write(di, BQ27XXX_REG_CTRL, 0x20, false);
+		ret = di->bus.write(di, reg_ctrl, BQ27XXX_SEALED, false);
 		if (ret < 0)
 			goto out;
 	} else {
-		ret = di->bus.write(di, BQ27XXX_REG_CTRL, (key >> 16) & 0xffff, false);
+		ret = di->bus.write(di, reg_ctrl, (key >> 16) & 0xffff, false);
 		if (ret < 0)
 			goto out;
 
-		ret = di->bus.write(di, BQ27XXX_REG_CTRL, key & 0xffff, false);
+		ret = di->bus.write(di, reg_ctrl, key & 0xffff, false);
 		if (ret < 0)
 			goto out;
 	}
@@ -582,7 +585,7 @@ static int bq27xxx_battery_read_dm_block(struct bq27xxx_device_info *di,
 {
 	int ret;
 
-	ret = di->bus.write(di, BQ27XXX_REG_CTRL, 0, false);
+	ret = di->bus.write(di, di->regs[BQ27XXX_REG_CTRL], 0, false);
 	if (ret < 0)
 		goto out;
 
@@ -590,7 +593,7 @@ static int bq27xxx_battery_read_dm_block(struct bq27xxx_device_info *di,
 	if (ret < 0)
 		goto out;
 
-	ret = di->bus.write(di, BQ27XXX_BLOCK_DATA_CLASS, subclass, true);
+	ret = di->bus.write(di, BQ27XXX_DATA_CLASS, subclass, true);
 	if (ret < 0)
 		goto out;
 
@@ -676,9 +679,10 @@ static int bq27xxx_battery_write_dm_block(struct bq27xxx_device_info *di,
 					  struct bq27xxx_dm_buf *buf,
 					  unsigned int subclass)
 {
+	u8 reg_ctrl = di->regs[BQ27XXX_REG_CTRL];
 	int ret;
 
-	ret = di->bus.write(di, BQ27XXX_REG_CTRL, BQ27XXX_SET_CFGUPDATE, false);
+	ret = di->bus.write(di, reg_ctrl, BQ27XXX_SET_CFGUPDATE, false);
 	if (ret < 0)
 		goto out;
 
@@ -686,7 +690,7 @@ static int bq27xxx_battery_write_dm_block(struct bq27xxx_device_info *di,
 	if (ret < 0)
 		goto out;
 
-	ret = di->bus.write(di, BQ27XXX_BLOCK_DATA_CLASS, subclass, true);
+	ret = di->bus.write(di, BQ27XXX_DATA_CLASS, subclass, true);
 	if (ret < 0)
 		goto out;
 
@@ -707,7 +711,7 @@ static int bq27xxx_battery_write_dm_block(struct bq27xxx_device_info *di,
 
 	usleep_range(1000, 1500);
 
-	ret = di->bus.write(di, BQ27XXX_REG_CTRL, BQ27XXX_SOFT_RESET, false);
+	ret = di->bus.write(di, reg_ctrl, BQ27XXX_SOFT_RESET, false);
         if (ret < 0)
                 goto out;
 
