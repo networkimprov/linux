@@ -1026,7 +1026,8 @@ void bq27xxx_battery_settings(struct bq27xxx_device_info *di)
 	if (!bq27xxx_dm_regs[di->chip])
 		return;
 
-	bq27xxx_battery_set_seal_state(di, false);
+	if (bq27xxx_battery_set_seal_state(di, false) < 0)
+		return;
 
 	if (power_supply_get_battery_info(di->bat, &info) < 0)
 		goto out;
