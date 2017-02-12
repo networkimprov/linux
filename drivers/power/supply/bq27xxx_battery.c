@@ -478,8 +478,8 @@ struct bq27xxx_dm_reg {
 
 #define BQ27XXX_DM_SUPPORTED(r) ( \
 	   (r)->subclass == BQ27XXX_SUBCLASS_STATE_NVM \
-	&& (r)->offset <= 30 \
 	&& (r)->bytes == 2 \
+	&& (r)->offset <= sizeof ((struct bq27xxx_dm_buf*)0)->a - (r)->bytes \
 )
 
 enum bq27xxx_dm_reg_id {
