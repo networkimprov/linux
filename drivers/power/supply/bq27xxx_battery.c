@@ -468,21 +468,21 @@ static LIST_HEAD(bq27xxx_battery_devices);
 #define BQ27XXX_UNSEAL_KEY		0x04143672
 #define BQ27XXX_SET_CFGUPDATE		0x13
 #define BQ27XXX_SOFT_RESET		0x42
-#define BQ27XXX_SUBCLASS_STATE_NVM	82
+#define BQ27XXX_CLASS_STATE_NVM		82
 
 struct bq27xxx_dm_buf {
 	u8 a[32];
 };
 
 struct bq27xxx_dm_reg {
-	unsigned int subclass;
+	unsigned int class;
 	unsigned int offset;
 	unsigned int bytes;
 	const char *name;
 };
 
 #define BQ27XXX_DM_SUPPORTED(r) ( \
-	   (r)->subclass == BQ27XXX_SUBCLASS_STATE_NVM \
+	   (r)->class == BQ27XXX_CLASS_STATE_NVM \
 	&& (r)->bytes == 2 \
 	&& (r)->offset <= sizeof ((struct bq27xxx_dm_buf*)0)->a - (r)->bytes \
 )
@@ -496,11 +496,11 @@ enum bq27xxx_dm_reg_id {
 
 static struct bq27xxx_dm_reg bq27425_dm_regs[] = {
 	[BQ27XXX_DM_DESIGN_CAPACITY] =
-		{ BQ27XXX_SUBCLASS_STATE_NVM, 12, 2, "design-capacity" },
+		{ BQ27XXX_CLASS_STATE_NVM, 12, 2, "design-capacity" },
 	[BQ27XXX_DM_DESIGN_ENERGY] =
-		{ BQ27XXX_SUBCLASS_STATE_NVM, 14, 2, "design-energy" },
+		{ BQ27XXX_CLASS_STATE_NVM, 14, 2, "design-energy" },
 	[BQ27XXX_DM_TERMINATE_VOLTAGE] =
-		{ BQ27XXX_SUBCLASS_STATE_NVM, 18, 2, "terminate-voltage" },
+		{ BQ27XXX_CLASS_STATE_NVM, 18, 2, "terminate-voltage" },
 };
 
 static struct bq27xxx_dm_reg *bq27xxx_dm_regs[] = {
@@ -581,7 +581,7 @@ out:
 
 static int bq27xxx_battery_read_dm_block(struct bq27xxx_device_info *di,
 					 struct bq27xxx_dm_buf *buf,
-					 unsigned int subclass)
+					 unsigned int class)
 {
 	int ret;
 
@@ -593,7 +593,7 @@ static int bq27xxx_battery_read_dm_block(struct bq27xxx_device_info *di,
 	if (ret < 0)
 		goto out;
 
-	ret = di->bus.write(di, BQ27XXX_DATA_CLASS, subclass, true);
+	ret = di->bus.write(di, BQ27XXX_DATA_CLASS, class, true);
 	if (ret < 0)
 		goto out;
 
@@ -621,7 +621,7 @@ static int bq27xxx_battery_print_config(struct bq27xxx_device_info *di)
 	int ret, i;
 
 	ret = bq27xxx_battery_read_dm_block(di, &buf,
-					    BQ27XXX_SUBCLASS_STATE_NVM);
+					    BQ27XXX_CLASS_STATE_NVM);
 	if (ret < 0)
 		return ret;
 
@@ -677,7 +677,7 @@ static u8 bq27xxx_battery_checksum(struct bq27xxx_dm_buf *buf)
 
 static int bq27xxx_battery_write_dm_block(struct bq27xxx_device_info *di,
 					  struct bq27xxx_dm_buf *buf,
-					  unsigned int subclass)
+					  unsigned int class)
 {
 	u8 reg_ctrl = di->regs[BQ27XXX_REG_CTRL];
 	int ret;
@@ -690,7 +690,7 @@ static int bq27xxx_battery_write_dm_block(struct bq27xxx_device_info *di,
 	if (ret < 0)
 		goto out;
 
-	ret = di->bus.write(di, BQ27XXX_DATA_CLASS, subclass, true);
+	ret = di->bus.write(di, BQ27XXX_DATA_CLASS, class, true);
 	if (ret < 0)
 		goto out;
 
@@ -729,7 +729,7 @@ static int bq27xxx_battery_set_config(struct bq27xxx_device_info *di,
 	int ret;
 
 	ret = bq27xxx_battery_read_dm_block(di, &buf,
-					    BQ27XXX_SUBCLASS_STATE_NVM);
+					    BQ27XXX_CLASS_STATE_NVM);
 	if (ret < 0)
 		return ret;
 
@@ -751,7 +751,7 @@ static int bq27xxx_battery_set_config(struct bq27xxx_device_info *di,
 	if (ret) {
 		dev_info(di->dev, "updating NVM settings\n");
 		return bq27xxx_battery_write_dm_block(di, &buf,
-						      BQ27XXX_SUBCLASS_STATE_NVM);
+						      BQ27XXX_CLASS_STATE_NVM);
 	}
 
 	return 0;
