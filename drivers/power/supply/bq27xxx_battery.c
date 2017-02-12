@@ -556,14 +556,24 @@ static int bq27xxx_battery_set_seal_state(struct bq27xxx_device_info *di,
 	unsigned int key = bq27xxx_unseal_keys[di->chip];
 	int ret;
 
-	if (state)
-		return di->bus.write(di, BQ27XXX_REG_CTRL, 0x20, false);
+	if (state) {
+		ret = di->bus.write(di, BQ27XXX_REG_CTRL, 0x20, false);
+		if (ret < 0)
+			goto out;
+	} else {
+		ret = di->bus.write(di, BQ27XXX_REG_CTRL, (key >> 16) & 0xffff, false);
+		if (ret < 0)
+			goto out;
 
-	ret = di->bus.write(di, BQ27XXX_REG_CTRL, (key >> 16) & 0xffff, false);
-	if (ret < 0)
-		return ret;
+		ret = di->bus.write(di, BQ27XXX_REG_CTRL, key & 0xffff, false);
+		if (ret < 0)
+			goto out;
+	}
+	return 0;
 
-	return di->bus.write(di, BQ27XXX_REG_CTRL, key & 0xffff, false);
+out:
+	dev_err(di->dev, "bus error in %s: %d\n", __func__, ret);
+	return ret;
 }
 
 static int bq27xxx_battery_read_dm_block(struct bq27xxx_device_info *di,
@@ -574,23 +584,31 @@ static int bq27xxx_battery_read_dm_block(struct bq27xxx_device_info *di,
 
 	ret = di->bus.write(di, BQ27XXX_REG_CTRL, 0, false);
 	if (ret < 0)
-		return ret;
+		goto out;
 
 	ret = di->bus.write(di, BQ27XXX_BLOCK_DATA_CONTROL, 0, true);
 	if (ret < 0)
-		return ret;
+		goto out;
 
 	ret = di->bus.write(di, BQ27XXX_BLOCK_DATA_CLASS, subclass, true);
 	if (ret < 0)
-		return ret;
+		goto out;
 
 	ret = di->bus.write(di, BQ27XXX_DATA_BLOCK, 0, true);
 	if (ret < 0)
-		return ret;
+		goto out;
 
 	usleep_range(1000, 1500);
 
-	return di->bus.read_bulk(di, BQ27XXX_BLOCK_DATA, buf->a, sizeof buf->a);
+	ret = di->bus.read_bulk(di, BQ27XXX_BLOCK_DATA, buf->a, sizeof buf->a);
+        if (ret < 0)
+                goto out;
+
+	return 0;
+
+out:
+        dev_err(di->dev, "bus error in %s: %d\n", __func__, ret);
+        return ret;
 }
 
 static int bq27xxx_battery_print_config(struct bq27xxx_device_info *di)
@@ -662,34 +680,42 @@ static int bq27xxx_battery_write_dm_block(struct bq27xxx_device_info *di,
 
 	ret = di->bus.write(di, BQ27XXX_REG_CTRL, BQ27XXX_SET_CFGUPDATE, false);
 	if (ret < 0)
-		return ret;
+		goto out;
 
 	ret = di->bus.write(di, BQ27XXX_BLOCK_DATA_CONTROL, 0, true);
 	if (ret < 0)
-		return ret;
+		goto out;
 
 	ret = di->bus.write(di, BQ27XXX_BLOCK_DATA_CLASS, subclass, true);
 	if (ret < 0)
-		return ret;
+		goto out;
 
 	ret = di->bus.write(di, BQ27XXX_DATA_BLOCK, 0, true);
 	if (ret < 0)
-		return ret;
+		goto out;
 
 	ret = di->bus.write_bulk(di, BQ27XXX_BLOCK_DATA, buf->a, sizeof buf->a);
 	if (ret < 0)
-		return ret;
+		goto out;
 
 	usleep_range(1000, 1500);
 
 	ret = di->bus.write(di, BQ27XXX_BLOCK_DATA_CHECKSUM,
 			    bq27xxx_battery_checksum(buf), true);
 	if (ret < 0)
-		return ret;
+		goto out;
 
 	usleep_range(1000, 1500);
 
-	return di->bus.write(di, BQ27XXX_REG_CTRL, BQ27XXX_SOFT_RESET, false);
+	ret = di->bus.write(di, BQ27XXX_REG_CTRL, BQ27XXX_SOFT_RESET, false);
+        if (ret < 0)
+                goto out;
+
+	return 0;
+
+out:
+        dev_err(di->dev, "bus error in %s: %d\n", __func__, ret);
+        return ret;
 }
 
 static int bq27xxx_battery_set_config(struct bq27xxx_device_info *di,
