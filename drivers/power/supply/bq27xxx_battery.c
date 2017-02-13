@@ -746,13 +746,12 @@ static int bq27xxx_battery_set_config(struct bq27xxx_device_info *di,
 					BQ27XXX_DM_TERMINATE_VOLTAGE,
 					info->voltage_min_design_uv / 1000);
 
-	if (ret) {
-		dev_info(di->dev, "updating NVM settings\n");
-		return bq27xxx_battery_write_dm_block(di, &buf,
-						      BQ27XXX_CLASS_STATE_NVM);
-	}
+	if (!ret)
+		return 0;
 
-	return 0;
+	dev_info(di->dev, "updating NVM settings\n");
+	return bq27xxx_battery_write_dm_block(di, &buf,
+					      BQ27XXX_CLASS_STATE_NVM);
 }
 
 /*
