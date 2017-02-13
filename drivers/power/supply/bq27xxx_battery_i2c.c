@@ -38,7 +38,7 @@ static int bq27xxx_battery_i2c_read(struct bq27xxx_device_info *di, u8 reg,
 {
 	struct i2c_client *client = to_i2c_client(di->dev);
 	struct i2c_msg msg[2];
-	unsigned char data[2];
+	u8 data[2];
 	int ret;
 
 	if (!client->adapter)
@@ -73,14 +73,14 @@ static int bq27xxx_battery_i2c_write(struct bq27xxx_device_info *di, u8 reg,
 {
 	struct i2c_client *client = to_i2c_client(di->dev);
 	struct i2c_msg msg;
-	unsigned char data[4];
+	u8 data[4];
 
 	if (!client->adapter)
 		return -ENODEV;
 
 	data[0] = reg;
 	if (single) {
-		data[1] = (unsigned char) value;
+		data[1] = (u8) value;
 		msg.len = 2;
 	} else {
 		put_unaligned_le16(value, &data[1]);
