@@ -462,7 +462,6 @@ static LIST_HEAD(bq27xxx_battery_devices);
 
 /* writable register params */
 #define BQ27XXX_SEALED			0x20
-#define BQ27XXX_UNSEAL_KEY		0x04143672
 #define BQ27XXX_SET_CFGUPDATE		0x13
 #define BQ27XXX_SOFT_RESET		0x42
 #define BQ27XXX_CLASS_STATE_NVM		82
@@ -503,6 +502,10 @@ static struct bq27xxx_dm_reg bq27425_dm_regs[] = {
 
 static struct bq27xxx_dm_reg *bq27xxx_dm_regs[] = {
 	[BQ27425] = bq27425_dm_regs,
+};
+ 
+static u32 bq27xxx_unseal_keys[] = {
+	[BQ27425] = 0x04143672,
 };
 
 
@@ -554,8 +557,9 @@ static int bq27xxx_battery_set_seal_state(struct bq27xxx_device_info *di,
 					  bool state)
 {
 	u8 reg_ctrl = di->regs[BQ27XXX_REG_CTRL];
-	unsigned int key = BQ27XXX_UNSEAL_KEY;
+	u32 key = bq27xxx_unseal_keys[di->chip];
 	int ret;
+	dev_info(di->dev, "%u %u, %u %u\n", (u16)(key>>16), (key>>16)&0xffff, (u16)key, key&0xffff);
 
 	if (state) {
 		ret = di->bus.write(di, reg_ctrl, BQ27XXX_SEALED, false);
