@@ -475,7 +475,6 @@ struct bq27xxx_dm_reg {
 	unsigned int offset;
 	unsigned int bytes;
 	unsigned int min, max;
-	const char *name;
 };
 
 #define BQ27XXX_DM_SUPPORTED(r) ( \
@@ -491,13 +490,16 @@ enum bq27xxx_dm_reg_id {
 	BQ27XXX_DM_END,
 };
 
+static const char* bq27xxx_dm_string[] = {
+	[BQ27XXX_DM_DESIGN_CAPACITY] = "design-capacity",
+	[BQ27XXX_DM_DESIGN_ENERGY] = "design-energy",
+	[BQ27XXX_DM_TERMINATE_VOLTAGE] = "terminate-voltage",
+};
+
 static struct bq27xxx_dm_reg bq27425_dm_regs[] = {
-	[BQ27XXX_DM_DESIGN_CAPACITY] =
-		{ BQ27XXX_CLASS_STATE_NVM, 12, 2, 0, 32767, "design-capacity" },
-	[BQ27XXX_DM_DESIGN_ENERGY] =
-		{ BQ27XXX_CLASS_STATE_NVM, 14, 2, 0, 32767, "design-energy" },
-	[BQ27XXX_DM_TERMINATE_VOLTAGE] =
-		{ BQ27XXX_CLASS_STATE_NVM, 18, 2, 2800, 3700, "terminate-voltage" },
+	[BQ27XXX_DM_DESIGN_CAPACITY]   = { BQ27XXX_CLASS_STATE_NVM, 12, 2,    0, 32767 },
+	[BQ27XXX_DM_DESIGN_ENERGY]     = { BQ27XXX_CLASS_STATE_NVM, 14, 2,    0, 32767 },
+	[BQ27XXX_DM_TERMINATE_VOLTAGE] = { BQ27XXX_CLASS_STATE_NVM, 18, 2, 2800,  3700 },
 };
 
 static struct bq27xxx_dm_reg *bq27xxx_dm_regs[] = {
@@ -628,16 +630,15 @@ static int bq27xxx_battery_print_config(struct bq27xxx_device_info *di)
 		return ret;
 
 	for (i = 0; i < BQ27XXX_DM_END; i++, reg++) {
-		int val;
+		const char* str = bq27xxx_dm_string[i];
 
 		if (!BQ27XXX_DM_SUPPORTED(reg)) {
-			dev_warn(di->dev, "unsupported config register %s\n", reg->name);
+			dev_warn(di->dev, "unsupported config register %s\n", str);
 			continue;
 		}
 
-		val = be16_to_cpup((u16 *) &buf.a[reg->offset]);
-
-		dev_info(di->dev, "config register %s set at %d\n", reg->name, val);
+		dev_info(di->dev, "config register %s set at %d\n", str,
+			 be16_to_cpup((u16 *) &buf.a[reg->offset]));
 	}
 
 	return 0;
