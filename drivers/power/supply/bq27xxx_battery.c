@@ -581,6 +581,18 @@ out:
 	return ret;
 }
 
+static u8 bq27xxx_battery_checksum(struct bq27xxx_dm_buf *buf)
+{
+	u16 sum = 0;
+	int i;
+
+	for (i = 0; i < sizeof buf->a; i++)
+		sum += buf->a[i];
+	sum &= 0xff;
+
+	return 0xff - sum;
+}
+
 static int bq27xxx_battery_read_dm_block(struct bq27xxx_device_info *di,
 					 struct bq27xxx_dm_buf *buf,
 					 u8 class)
@@ -609,6 +621,15 @@ static int bq27xxx_battery_read_dm_block(struct bq27xxx_device_info *di,
         if (ret < 0)
                 goto out;
 
+	ret = di->bus.read(di, BQ27XXX_BLOCK_DATA_CHECKSUM, true);
+	if (ret < 0)
+		goto out;
+
+	if ((u8)ret != bq27xxx_battery_checksum(buf)) {
+		ret = -EINVAL;
+		goto out;
+	}
+	
 	return 0;
 
 out:
@@ -660,18 +681,6 @@ static bool bq27xxx_battery_update_dm_block(struct bq27xxx_device_info *di,
 	*prev = cpu_to_be16(val);
 
 	return true;
-}
-
-static u8 bq27xxx_battery_checksum(struct bq27xxx_dm_buf *buf)
-{
-	u16 sum = 0;
-	int i;
-
-	for (i = 0; i < sizeof buf->a; i++)
-		sum += buf->a[i];
-	sum &= 0xff;
-
-	return 0xff - sum;
 }
 
 static int bq27xxx_battery_write_dm_block(struct bq27xxx_device_info *di,
