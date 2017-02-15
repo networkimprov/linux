@@ -668,10 +668,9 @@ static u8 bq27xxx_battery_checksum(struct bq27xxx_dm_buf *buf)
 	u16 sum = 0;
 	int i;
 
-	for (i = 0; i < sizeof buf->a; i++) {
+	for (i = 0; i < sizeof buf->a; i++)
 		sum += buf->a[i];
-		sum &= 0xff;
-	}
+	sum &= 0xff;
 
 	return 0xff - sum;
 }
@@ -699,11 +698,11 @@ static int bq27xxx_battery_write_dm_block(struct bq27xxx_device_info *di,
 	if (ret < 0)
 		goto out;
 
+	usleep_range(1000, 1500);
+
 	ret = di->bus.write_bulk(di, BQ27XXX_BLOCK_DATA, buf->a, sizeof buf->a);
 	if (ret < 0)
 		goto out;
-
-	usleep_range(1000, 1500);
 
 	ret = di->bus.write(di, BQ27XXX_BLOCK_DATA_CHECKSUM,
 			    bq27xxx_battery_checksum(buf), true);
