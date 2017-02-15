@@ -489,7 +489,7 @@ enum bq27xxx_dm_reg_id {
 	BQ27XXX_DM_END,
 };
 
-static const char* bq27xxx_dm_string[] = {
+static const char* bq27xxx_dm_reg_name[] = {
 	[BQ27XXX_DM_DESIGN_CAPACITY] = "design-capacity",
 	[BQ27XXX_DM_DESIGN_ENERGY] = "design-energy",
 	[BQ27XXX_DM_TERMINATE_VOLTAGE] = "terminate-voltage",
@@ -627,7 +627,7 @@ static int bq27xxx_battery_print_config(struct bq27xxx_device_info *di)
 		return ret;
 
 	for (i = 0; i < BQ27XXX_DM_END; i++, reg++) {
-		const char* str = bq27xxx_dm_string[i];
+		const char* str = bq27xxx_dm_reg_name[i];
 
 		if (!BQ27XXX_DM_SUPPORTED(reg)) {
 			dev_warn(di->dev, "unsupported config register %s\n", str);
