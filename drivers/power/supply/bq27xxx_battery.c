@@ -464,15 +464,15 @@ static LIST_HEAD(bq27xxx_battery_devices);
 #define BQ27XXX_SEALED			0x20
 #define BQ27XXX_SET_CFGUPDATE		0x13
 #define BQ27XXX_SOFT_RESET		0x42
-#define BQ27XXX_CLASS_STATE_NVM		82
 
 struct bq27xxx_dm_buf {
 	u8 a[32];
 };
 
 struct bq27xxx_dm_reg {
-	unsigned int offset;
-	unsigned int bytes;
+	u8 class;
+	u8 offset;
+	u8 bytes;
 	unsigned int min, max;
 };
 
@@ -495,9 +495,9 @@ static const char* bq27xxx_dm_string[] = {
 };
 
 static struct bq27xxx_dm_reg bq27425_dm_regs[] = {
-	[BQ27XXX_DM_DESIGN_CAPACITY]   = { 12, 2,    0, 32767 },
-	[BQ27XXX_DM_DESIGN_ENERGY]     = { 14, 2,    0, 32767 },
-	[BQ27XXX_DM_TERMINATE_VOLTAGE] = { 18, 2, 2800,  3700 },
+	[BQ27XXX_DM_DESIGN_CAPACITY]   = { 82, 12, 2,    0, 32767 },
+	[BQ27XXX_DM_DESIGN_ENERGY]     = { 82, 14, 2,    0, 32767 },
+	[BQ27XXX_DM_TERMINATE_VOLTAGE] = { 82, 18, 2, 2800,  3700 },
 };
 
 static struct bq27xxx_dm_reg *bq27xxx_dm_regs[] = {
@@ -618,12 +618,11 @@ out:
 
 static int bq27xxx_battery_print_config(struct bq27xxx_device_info *di)
 {
-	struct bq27xxx_dm_buf buf;
 	struct bq27xxx_dm_reg *reg = bq27xxx_dm_regs[di->chip];
+	struct bq27xxx_dm_buf buf;
 	int ret, i;
 
-	ret = bq27xxx_battery_read_dm_block(di, &buf,
-					    BQ27XXX_CLASS_STATE_NVM);
+	ret = bq27xxx_battery_read_dm_block(di, &buf, reg->class);
 	if (ret < 0)
 		return ret;
 
@@ -725,11 +724,11 @@ out:
 static int bq27xxx_battery_set_config(struct bq27xxx_device_info *di,
 				      struct power_supply_battery_info *info)
 {
+	struct bq27xxx_dm_reg *reg = bq27xxx_dm_regs[di->chip];
 	struct bq27xxx_dm_buf buf;
 	int ret;
 
-	ret = bq27xxx_battery_read_dm_block(di, &buf,
-					    BQ27XXX_CLASS_STATE_NVM);
+	ret = bq27xxx_battery_read_dm_block(di, &buf, reg->class);
 	if (ret < 0)
 		return ret;
 
@@ -752,8 +751,7 @@ static int bq27xxx_battery_set_config(struct bq27xxx_device_info *di,
 		return 0;
 
 	dev_info(di->dev, "updating NVM settings\n");
-	return bq27xxx_battery_write_dm_block(di, &buf,
-					      BQ27XXX_CLASS_STATE_NVM);
+	return bq27xxx_battery_write_dm_block(di, &buf, reg->class);
 }
 
 /*
