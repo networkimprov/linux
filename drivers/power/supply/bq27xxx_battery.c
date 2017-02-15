@@ -454,6 +454,7 @@ static DEFINE_MUTEX(bq27xxx_list_lock);
 static LIST_HEAD(bq27xxx_battery_devices);
 
 /* writable registers */
+#define BQ27XXX_CONTROL			0x00
 #define BQ27XXX_DATA_CLASS		0x3E
 #define BQ27XXX_DATA_BLOCK		0x3F
 #define BQ27XXX_BLOCK_DATA		0x40
@@ -556,21 +557,20 @@ static inline int bq27xxx_read(struct bq27xxx_device_info *di, int reg_index,
 static int bq27xxx_battery_set_seal_state(struct bq27xxx_device_info *di,
 					  bool state)
 {
-	u8 reg_ctrl = di->regs[BQ27XXX_REG_CTRL];
 	u32 key = bq27xxx_unseal_keys[di->chip];
 	int ret;
 	dev_info(di->dev, "%u %u, %u %u\n", (u16)(key>>16), (key>>16)&0xffff, (u16)key, key&0xffff);
 
 	if (state) {
-		ret = di->bus.write(di, reg_ctrl, BQ27XXX_SEALED, false);
+		ret = di->bus.write(di, BQ27XXX_CONTROL, BQ27XXX_SEALED, false);
 		if (ret < 0)
 			goto out;
 	} else {
-		ret = di->bus.write(di, reg_ctrl, (key >> 16) & 0xffff, false);
+		ret = di->bus.write(di, BQ27XXX_CONTROL, (key >> 16) & 0xffff, false);
 		if (ret < 0)
 			goto out;
 
-		ret = di->bus.write(di, reg_ctrl, key & 0xffff, false);
+		ret = di->bus.write(di, BQ27XXX_CONTROL, key & 0xffff, false);
 		if (ret < 0)
 			goto out;
 	}
@@ -587,7 +587,7 @@ static int bq27xxx_battery_read_dm_block(struct bq27xxx_device_info *di,
 {
 	int ret;
 
-	ret = di->bus.write(di, di->regs[BQ27XXX_REG_CTRL], 0, false);
+	ret = di->bus.write(di, BQ27XXX_CONTROL, 0, false);
 	if (ret < 0)
 		goto out;
 
@@ -678,10 +678,9 @@ static int bq27xxx_battery_write_dm_block(struct bq27xxx_device_info *di,
 					  struct bq27xxx_dm_buf *buf,
 					  u8 class)
 {
-	u8 reg_ctrl = di->regs[BQ27XXX_REG_CTRL];
 	int ret;
 
-	ret = di->bus.write(di, reg_ctrl, BQ27XXX_SET_CFGUPDATE, false);
+	ret = di->bus.write(di, BQ27XXX_CONTROL, BQ27XXX_SET_CFGUPDATE, false);
 	if (ret < 0)
 		goto out;
 
@@ -710,7 +709,7 @@ static int bq27xxx_battery_write_dm_block(struct bq27xxx_device_info *di,
 
 	usleep_range(1000, 1500);
 
-	ret = di->bus.write(di, reg_ctrl, BQ27XXX_SOFT_RESET, false);
+	ret = di->bus.write(di, BQ27XXX_CONTROL, BQ27XXX_SOFT_RESET, false);
         if (ret < 0)
                 goto out;
 
