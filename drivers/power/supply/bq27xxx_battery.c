@@ -471,15 +471,13 @@ struct bq27xxx_dm_buf {
 };
 
 struct bq27xxx_dm_reg {
-	unsigned int class;
 	unsigned int offset;
 	unsigned int bytes;
 	unsigned int min, max;
 };
 
 #define BQ27XXX_DM_SUPPORTED(r) ( \
-	   (r)->class == BQ27XXX_CLASS_STATE_NVM \
-	&& (r)->bytes == 2 \
+	   (r)->bytes == 2 \
 	&& (r)->offset <= sizeof ((struct bq27xxx_dm_buf*)0)->a - (r)->bytes \
 )
 
@@ -497,9 +495,9 @@ static const char* bq27xxx_dm_string[] = {
 };
 
 static struct bq27xxx_dm_reg bq27425_dm_regs[] = {
-	[BQ27XXX_DM_DESIGN_CAPACITY]   = { BQ27XXX_CLASS_STATE_NVM, 12, 2,    0, 32767 },
-	[BQ27XXX_DM_DESIGN_ENERGY]     = { BQ27XXX_CLASS_STATE_NVM, 14, 2,    0, 32767 },
-	[BQ27XXX_DM_TERMINATE_VOLTAGE] = { BQ27XXX_CLASS_STATE_NVM, 18, 2, 2800,  3700 },
+	[BQ27XXX_DM_DESIGN_CAPACITY]   = { 12, 2,    0, 32767 },
+	[BQ27XXX_DM_DESIGN_ENERGY]     = { 14, 2,    0, 32767 },
+	[BQ27XXX_DM_TERMINATE_VOLTAGE] = { 18, 2, 2800,  3700 },
 };
 
 static struct bq27xxx_dm_reg *bq27xxx_dm_regs[] = {
@@ -585,7 +583,7 @@ out:
 
 static int bq27xxx_battery_read_dm_block(struct bq27xxx_device_info *di,
 					 struct bq27xxx_dm_buf *buf,
-					 unsigned int class)
+					 u8 class)
 {
 	int ret;
 
@@ -680,7 +678,7 @@ static u8 bq27xxx_battery_checksum(struct bq27xxx_dm_buf *buf)
 
 static int bq27xxx_battery_write_dm_block(struct bq27xxx_device_info *di,
 					  struct bq27xxx_dm_buf *buf,
-					  unsigned int class)
+					  u8 class)
 {
 	u8 reg_ctrl = di->regs[BQ27XXX_REG_CTRL];
 	int ret;
