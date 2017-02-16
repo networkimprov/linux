@@ -685,9 +685,11 @@ static int bq27xxx_battery_write_dm_block(struct bq27xxx_device_info *di,
 {
 	int ret;
 
-	ret = di->bus.write(di, BQ27XXX_CONTROL, BQ27XXX_SET_CFGUPDATE, false);
-	if (ret < 0)
-		goto out;
+	if (di->chip == BQ27425 || di->chip == BQ27421) {
+		ret = di->bus.write(di, BQ27XXX_CONTROL, BQ27XXX_SET_CFGUPDATE, false);
+		if (ret < 0)
+			goto out;
+	}
 
 	ret = di->bus.write(di, BQ27XXX_BLOCK_DATA_CONTROL, 0, true);
 	if (ret < 0)
@@ -714,9 +716,11 @@ static int bq27xxx_battery_write_dm_block(struct bq27xxx_device_info *di,
 
 	usleep_range(1000, 1500);
 
-	ret = di->bus.write(di, BQ27XXX_CONTROL, BQ27XXX_SOFT_RESET, false);
-        if (ret < 0)
-                goto out;
+	if (di->chip == BQ27425 || di->chip == BQ27421) {
+		ret = di->bus.write(di, BQ27XXX_CONTROL, BQ27XXX_SOFT_RESET, false);
+        	if (ret < 0)
+                	goto out;
+	}
 
 	return 0;
 
