@@ -471,7 +471,7 @@ struct bq27xxx_dm_buf {
 };
 
 struct bq27xxx_dm_reg {
-	u8 class;
+	u8 subclass_id;
 	u8 offset;
 	u8 bytes;
 	unsigned int min, max;
@@ -639,7 +639,7 @@ static int bq27xxx_battery_print_config(struct bq27xxx_device_info *di)
 	struct bq27xxx_dm_buf buf;
 	int ret, i;
 
-	ret = bq27xxx_battery_read_dm_block(di, &buf, reg->class);
+	ret = bq27xxx_battery_read_dm_block(di, &buf, reg->subclass_id);
 	if (ret < 0)
 		return ret;
 
@@ -736,7 +736,7 @@ static int bq27xxx_battery_set_config(struct bq27xxx_device_info *di,
 	struct bq27xxx_dm_buf buf;
 	int ret;
 
-	ret = bq27xxx_battery_read_dm_block(di, &buf, reg->class);
+	ret = bq27xxx_battery_read_dm_block(di, &buf, reg->subclass_id);
 	if (ret < 0)
 		return ret;
 
@@ -759,7 +759,7 @@ static int bq27xxx_battery_set_config(struct bq27xxx_device_info *di,
 		return 0;
 
 	dev_info(di->dev, "updating NVM settings\n");
-	return bq27xxx_battery_write_dm_block(di, &buf, reg->class);
+	return bq27xxx_battery_write_dm_block(di, &buf, reg->subclass_id);
 }
 
 /*
