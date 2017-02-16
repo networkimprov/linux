@@ -504,7 +504,7 @@ static struct bq27xxx_dm_reg bq27425_dm_regs[] = {
 static struct bq27xxx_dm_reg *bq27xxx_dm_regs[] = {
 	[BQ27425] = bq27425_dm_regs,
 };
- 
+
 static u32 bq27xxx_unseal_keys[] = {
 	[BQ27425] = 0x04143672,
 };
@@ -625,7 +625,7 @@ static int bq27xxx_battery_read_dm_block(struct bq27xxx_device_info *di,
 		ret = -EINVAL;
 		goto out;
 	}
-	
+
 	return 0;
 
 out:
