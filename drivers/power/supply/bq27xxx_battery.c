@@ -599,10 +599,6 @@ static int bq27xxx_battery_read_dm_block(struct bq27xxx_device_info *di,
 {
 	int ret;
 
-	ret = di->bus.write(di, BQ27XXX_CONTROL, 0, false);
-	if (ret < 0)
-		goto out;
-
 	ret = di->bus.write(di, BQ27XXX_BLOCK_DATA_CONTROL, 0, true);
 	if (ret < 0)
 		goto out;
