@@ -573,6 +573,10 @@ static int bq27xxx_battery_set_seal_state(struct bq27xxx_device_info *di,
 		ret = di->bus.write(di, BQ27XXX_CONTROL, key & 0xffff, false);
 		if (ret < 0)
 			goto out;
+
+		ret = di->bus.write(di, BQ27XXX_BLOCK_DATA_CONTROL, 0, true);
+		if (ret < 0)
+			goto out;
 	}
 	return 0;
 
@@ -598,10 +602,6 @@ static int bq27xxx_battery_read_dm_block(struct bq27xxx_device_info *di,
 					 u8 class)
 {
 	int ret;
-
-	ret = di->bus.write(di, BQ27XXX_BLOCK_DATA_CONTROL, 0, true);
-	if (ret < 0)
-		goto out;
 
 	ret = di->bus.write(di, BQ27XXX_DATA_CLASS, class, true);
 	if (ret < 0)
@@ -691,10 +691,6 @@ static int bq27xxx_battery_write_dm_block(struct bq27xxx_device_info *di,
 		if (ret < 0)
 			goto out1;
 	}
-
-	ret = di->bus.write(di, BQ27XXX_BLOCK_DATA_CONTROL, 0, true);
-	if (ret < 0)
-		goto out2;
 
 	ret = di->bus.write(di, BQ27XXX_DATA_CLASS, class, true);
 	if (ret < 0)
