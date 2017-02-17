@@ -614,8 +614,8 @@ static int bq27xxx_battery_read_dm_block(struct bq27xxx_device_info *di,
 	usleep_range(1000, 1500);
 
 	ret = di->bus.read_bulk(di, BQ27XXX_BLOCK_DATA, buf->a, sizeof buf->a);
-        if (ret < 0)
-                goto out;
+	if (ret < 0)
+		goto out;
 
 	ret = di->bus.read(di, BQ27XXX_BLOCK_DATA_CHECKSUM, true);
 	if (ret < 0)
@@ -629,8 +629,8 @@ static int bq27xxx_battery_read_dm_block(struct bq27xxx_device_info *di,
 	return 0;
 
 out:
-        dev_err(di->dev, "bus error in %s: %d\n", __func__, ret);
-        return ret;
+	dev_err(di->dev, "bus error in %s: %d\n", __func__, ret);
+	return ret;
 }
 
 static int bq27xxx_battery_print_config(struct bq27xxx_device_info *di)
@@ -719,8 +719,8 @@ static int bq27xxx_battery_write_dm_block(struct bq27xxx_device_info *di,
 
 	if (cfgup) {
 		ret = di->bus.write(di, BQ27XXX_CONTROL, BQ27XXX_SOFT_RESET, false);
-        	if (ret < 0)
-                	goto out1;
+		if (ret < 0)
+			goto out1;
 	}
 
 	return 0;
@@ -730,7 +730,7 @@ out2:
 		di->bus.write(di, BQ27XXX_CONTROL, BQ27XXX_SOFT_RESET, false);
 out1:
 	dev_err(di->dev, "bus error in %s: %d\n", __func__, ret);
-        return ret;
+	return ret;
 }
 
 static int bq27xxx_battery_set_config(struct bq27xxx_device_info *di,
