@@ -762,6 +762,75 @@ static int bq27xxx_battery_set_config(struct bq27xxx_device_info *di,
 	return bq27xxx_battery_write_dm_block(di, &buf, reg->subclass_id);
 }
 
+void bq27xxx_battery_settings(struct bq27xxx_device_info *di)
+{
+	struct power_supply_battery_info info = {};
+	unsigned int min, max;
+
+	/* functions don't exist for writing data so abort */
+	if (!di->bus.write || !di->bus.write_bulk)
+		return;
+
+	/* no settings to be set for this chipset so abort */
+	if (!bq27xxx_dm_regs[di->chip])
+		return;
+
+	if (bq27xxx_battery_set_seal_state(di, false) < 0)
+		return;
+
+	if (power_supply_get_battery_info(di->bat, &info) < 0)
+		goto out;
+
+	if (info.energy_full_design_uwh != info.charge_full_design_uah) {
+		if (info.energy_full_design_uwh == -EINVAL)
+			dev_warn(di->dev,
+				"missing battery:energy-full-design-microwatt-hours\n");
+		else if (info.charge_full_design_uah == -EINVAL)
+			dev_warn(di->dev,
+				"missing battery:charge-full-design-microamp-hours\n");
+	}
+
+	/* assume min == 0 */
+	max = bq27xxx_dm_regs[di->chip][BQ27XXX_DM_DESIGN_ENERGY].max;
+	if (info.energy_full_design_uwh > max * 1000) {
+		dev_err(di->dev,
+		       "invalid battery:energy-full-design-microwatt-hours %d\n",
+			info.energy_full_design_uwh);
+		info.energy_full_design_uwh = -EINVAL;
+	}
+
+	/* assume min == 0 */
+	max = bq27xxx_dm_regs[di->chip][BQ27XXX_DM_DESIGN_CAPACITY].max;
+	if (info.charge_full_design_uah > max * 1000) {
+		dev_err(di->dev,
+		       "invalid battery:charge-full-design-microamp-hours %d\n",
+			info.charge_full_design_uah);
+		info.charge_full_design_uah = -EINVAL;
+	}
+
+	min = bq27xxx_dm_regs[di->chip][BQ27XXX_DM_TERMINATE_VOLTAGE].min;
+	max = bq27xxx_dm_regs[di->chip][BQ27XXX_DM_TERMINATE_VOLTAGE].max;
+	if ((info.voltage_min_design_uv < min * 1000
+	  || info.voltage_min_design_uv > max * 1000)
+	  && info.voltage_min_design_uv != -EINVAL) {
+		dev_err(di->dev,
+		       "invalid battery:voltage-min-design-microvolt %d\n",
+			info.voltage_min_design_uv);
+		info.voltage_min_design_uv = -EINVAL;
+	}
+
+	if ((info.energy_full_design_uwh == -EINVAL
+	  || info.charge_full_design_uah == -EINVAL)
+	  && info.voltage_min_design_uv  == -EINVAL)
+		goto out;
+
+	bq27xxx_battery_set_config(di, &info);
+
+out:
+	bq27xxx_battery_print_config(di);
+	bq27xxx_battery_set_seal_state(di, true);
+}
+
 /*
  * Return the battery State-of-Charge
  * Or < 0 if something fails.
@@ -1021,75 +1090,6 @@ static int bq27xxx_battery_read_health(struct bq27xxx_device_info *di)
 		return POWER_SUPPLY_HEALTH_DEAD;
 
 	return POWER_SUPPLY_HEALTH_GOOD;
-}
-
-void bq27xxx_battery_settings(struct bq27xxx_device_info *di)
-{
-	struct power_supply_battery_info info = {};
-	unsigned int min, max;
-
-	/* functions don't exist for writing data so abort */
-	if (!di->bus.write || !di->bus.write_bulk)
-		return;
-
-	/* no settings to be set for this chipset so abort */
-	if (!bq27xxx_dm_regs[di->chip])
-		return;
-
-	if (bq27xxx_battery_set_seal_state(di, false) < 0)
-		return;
-
-	if (power_supply_get_battery_info(di->bat, &info) < 0)
-		goto out;
-
-	if (info.energy_full_design_uwh != info.charge_full_design_uah) {
-		if (info.energy_full_design_uwh == -EINVAL)
-			dev_warn(di->dev,
-				"missing battery:energy-full-design-microwatt-hours\n");
-		else if (info.charge_full_design_uah == -EINVAL)
-			dev_warn(di->dev,
-				"missing battery:charge-full-design-microamp-hours\n");
-	}
-
-	/* assume min == 0 */
-	max = bq27xxx_dm_regs[di->chip][BQ27XXX_DM_DESIGN_ENERGY].max;
-	if (info.energy_full_design_uwh > max * 1000) {
-		dev_err(di->dev,
-		       "invalid battery:energy-full-design-microwatt-hours %d\n",
-			info.energy_full_design_uwh);
-		info.energy_full_design_uwh = -EINVAL;
-	}
-
-	/* assume min == 0 */
-	max = bq27xxx_dm_regs[di->chip][BQ27XXX_DM_DESIGN_CAPACITY].max;
-	if (info.charge_full_design_uah > max * 1000) {
-		dev_err(di->dev,
-		       "invalid battery:charge-full-design-microamp-hours %d\n",
-			info.charge_full_design_uah);
-		info.charge_full_design_uah = -EINVAL;
-	}
-
-	min = bq27xxx_dm_regs[di->chip][BQ27XXX_DM_TERMINATE_VOLTAGE].min;
-	max = bq27xxx_dm_regs[di->chip][BQ27XXX_DM_TERMINATE_VOLTAGE].max;
-	if ((info.voltage_min_design_uv < min * 1000
-	  || info.voltage_min_design_uv > max * 1000)
-	  && info.voltage_min_design_uv != -EINVAL) {
-		dev_err(di->dev,
-		       "invalid battery:voltage-min-design-microvolt %d\n",
-			info.voltage_min_design_uv);
-		info.voltage_min_design_uv = -EINVAL;
-	}
-
-	if ((info.energy_full_design_uwh == -EINVAL
-	  || info.charge_full_design_uah == -EINVAL)
-	  && info.voltage_min_design_uv  == -EINVAL)
-		goto out;
-
-	bq27xxx_battery_set_config(di, &info);
-
-out:
-	bq27xxx_battery_print_config(di);
-	bq27xxx_battery_set_seal_state(di, true);
 }
 
 void bq27xxx_battery_update(struct bq27xxx_device_info *di)
