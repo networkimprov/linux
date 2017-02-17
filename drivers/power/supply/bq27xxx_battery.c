@@ -461,7 +461,7 @@ static LIST_HEAD(bq27xxx_battery_devices);
 #define BQ27XXX_BLOCK_DATA_CHECKSUM	0x60
 #define BQ27XXX_BLOCK_DATA_CONTROL	0x61
 
-/* writable register params */
+/* control register params */
 #define BQ27XXX_SEALED			0x20
 #define BQ27XXX_SET_CFGUPDATE		0x13
 #define BQ27XXX_SOFT_RESET		0x42
