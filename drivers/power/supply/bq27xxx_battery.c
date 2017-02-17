@@ -683,49 +683,53 @@ static int bq27xxx_battery_write_dm_block(struct bq27xxx_device_info *di,
 					  struct bq27xxx_dm_buf *buf,
 					  u8 class)
 {
+	bool cfgup = di->chip == BQ27425 || di->chip == BQ27421; /* || BQ27441 || BQ27621 */
 	int ret;
 
-	if (di->chip == BQ27425 || di->chip == BQ27421) { /* || BQ27441 || BQ27621 */
+	if (cfgup) {
 		ret = di->bus.write(di, BQ27XXX_CONTROL, BQ27XXX_SET_CFGUPDATE, false);
 		if (ret < 0)
-			goto out;
+			goto out1;
 	}
 
 	ret = di->bus.write(di, BQ27XXX_BLOCK_DATA_CONTROL, 0, true);
 	if (ret < 0)
-		goto out;
+		goto out2;
 
 	ret = di->bus.write(di, BQ27XXX_DATA_CLASS, class, true);
 	if (ret < 0)
-		goto out;
+		goto out2;
 
 	ret = di->bus.write(di, BQ27XXX_DATA_BLOCK, 0, true);
 	if (ret < 0)
-		goto out;
+		goto out2;
 
 	usleep_range(1000, 1500);
 
 	ret = di->bus.write_bulk(di, BQ27XXX_BLOCK_DATA, buf->a, sizeof buf->a);
 	if (ret < 0)
-		goto out;
+		goto out2;
 
 	ret = di->bus.write(di, BQ27XXX_BLOCK_DATA_CHECKSUM,
 			    bq27xxx_battery_checksum(buf), true);
 	if (ret < 0)
-		goto out;
+		goto out2;
 
 	usleep_range(1000, 1500);
 
-	if (di->chip == BQ27425 || di->chip == BQ27421) { /* || BQ27441 || BQ27621 */
+	if (cfgup) {
 		ret = di->bus.write(di, BQ27XXX_CONTROL, BQ27XXX_SOFT_RESET, false);
         	if (ret < 0)
-                	goto out;
+                	goto out1;
 	}
 
 	return 0;
 
-out:
-        dev_err(di->dev, "bus error in %s: %d\n", __func__, ret);
+out2:
+	if (cfgup)
+		di->bus.write(di, BQ27XXX_CONTROL, BQ27XXX_SOFT_RESET, false);
+out1:
+	dev_err(di->dev, "bus error in %s: %d\n", __func__, ret);
         return ret;
 }
 
