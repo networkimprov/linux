@@ -466,6 +466,13 @@ static LIST_HEAD(bq27xxx_battery_devices);
 #define BQ27XXX_SET_CFGUPDATE		0x13
 #define BQ27XXX_SOFT_RESET		0x42
 
+struct bq27xxx_dm_reg {
+	u8 subclass_id;
+	u8 offset;
+	u8 bytes;
+	u16 min, max;
+};
+
 struct bq27xxx_dm_buf {
 	u8 class;
 	u8 block;
@@ -473,18 +480,24 @@ struct bq27xxx_dm_buf {
 	bool full, updt;
 };
 
+#define BQ27XXX_DM_BUF_PTR(b, r) \
+	( (u16*) &(b).a[ (r)->offset % sizeof (b).a ] )
+
 #define BQ27XXX_DM_BUF(di, i) { \
 	.class = bq27xxx_dm_regs[(di)->chip][i].subclass_id, \
 	.block = bq27xxx_dm_regs[(di)->chip][i].offset / sizeof ((struct bq27xxx_dm_buf*)0)->a, \
 	.full = false, \
 }
 
-struct bq27xxx_dm_reg {
-	u8 subclass_id;
-	u8 offset;
-	u8 bytes;
-	u16 min, max;
-};
+static inline bool bq27xxx_dm_buf_set(struct bq27xxx_dm_buf *buf,
+				      struct bq27xxx_dm_reg *reg) {
+	if (buf->class == reg->subclass_id
+	 && buf->block == reg->offset / sizeof buf->a)
+		return false;
+	buf->class = reg->subclass_id;
+	buf->block = reg->offset / sizeof buf->a;
+	return true;
+}
 
 enum bq27xxx_dm_reg_id {
 	BQ27XXX_DM_DESIGN_CAPACITY = 0,
@@ -663,10 +676,7 @@ static int bq27xxx_battery_print_config(struct bq27xxx_device_info *di)
 	for (i = 0; i < BQ27XXX_DM_END; i++, reg++) {
 		const char* str = bq27xxx_dm_reg_name[i];
 
-		if (buf.class != reg->subclass_id
-		 || buf.block != reg->offset / sizeof buf.a) {
-			buf.class = reg->subclass_id;
-			buf.block = reg->offset / sizeof buf.a;
+		if (bq27xxx_dm_buf_set(&buf, reg)) {
 			ret = bq27xxx_battery_read_dm_block(di, &buf);
 			if (ret < 0)
 				return ret;
@@ -674,7 +684,7 @@ static int bq27xxx_battery_print_config(struct bq27xxx_device_info *di)
 
 		if (reg->bytes == 2)
 			dev_info(di->dev, "config register %s set at %d\n", str,
-				 be16_to_cpup((u16 *) &buf.a[reg->offset % sizeof buf.a]));
+				 be16_to_cpup(BQ27XXX_DM_BUF_PTR(buf, reg)));
 		else
 			dev_warn(di->dev, "unsupported config register %s\n", str);
 	}
@@ -693,7 +703,7 @@ static void bq27xxx_battery_update_dm_block(struct bq27xxx_device_info *di,
 	if (reg->bytes != 2)
 		return;
 
-	prev = (u16 *) &buf->a[reg->offset % sizeof buf->a];
+	prev = BQ27XXX_DM_BUF_PTR(*buf, reg);
 
 	if (be16_to_cpup(prev) == val)
 		return;
