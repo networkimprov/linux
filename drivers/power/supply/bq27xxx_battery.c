@@ -496,6 +496,7 @@ static inline bool bq27xxx_dm_buf_set(struct bq27xxx_dm_buf *buf,
 		return false;
 	buf->class = reg->subclass_id;
 	buf->block = reg->offset / sizeof buf->a;
+	buf->full = false;
 	return true;
 }
 
