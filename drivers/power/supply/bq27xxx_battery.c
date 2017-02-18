@@ -713,6 +713,21 @@ static int bq27xxx_battery_write_dm_block(struct bq27xxx_device_info *di,
 
 	usleep_range(1000, 1500);
 
+	ret = di->bus.write(di, BQ27XXX_DATA_BLOCK, 0, true);
+	if (ret < 0)
+		goto out2;
+
+	usleep_range(1000, 1500);
+
+	ret = di->bus.read(di, BQ27XXX_BLOCK_DATA_CHECKSUM, true);
+	if (ret < 0)
+		goto out2;
+
+	if ((u8)ret != bq27xxx_battery_checksum(buf)) {
+		ret = -EINVAL;
+		goto out2;
+	}
+
 	if (cfgup) {
 		ret = di->bus.write(di, BQ27XXX_CONTROL, BQ27XXX_SOFT_RESET, false);
 		if (ret < 0)
