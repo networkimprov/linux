@@ -483,7 +483,7 @@ struct bq27xxx_dm_reg {
 	u8 subclass_id;
 	u8 offset;
 	u8 bytes;
-	unsigned int min, max;
+	u16 min, max;
 };
 
 enum bq27xxx_dm_reg_id {
@@ -505,12 +505,28 @@ static struct bq27xxx_dm_reg bq27425_dm_regs[] = {
 	[BQ27XXX_DM_TERMINATE_VOLTAGE] = { 82, 18, 2, 2800,  3700 },
 };
 
+static struct bq27xxx_dm_reg bq27421_dm_regs[] = { /* not tested */
+	[BQ27XXX_DM_DESIGN_CAPACITY]   = { 82, 10, 2,    0,  8000 },
+	[BQ27XXX_DM_DESIGN_ENERGY]     = { 82, 12, 2,    0, 32767 },
+	[BQ27XXX_DM_TERMINATE_VOLTAGE] = { 82, 16, 2, 2500,  3700 },
+};
+
+static struct bq27xxx_dm_reg bq27621_dm_regs[] = { /* not tested */
+	[BQ27XXX_DM_DESIGN_CAPACITY]   = { 82, 3, 2,    0,  8000 },
+	[BQ27XXX_DM_DESIGN_ENERGY]     = { 82, 5, 2,    0, 32767 },
+	[BQ27XXX_DM_TERMINATE_VOLTAGE] = { 82, 9, 2, 2500,  3700 },
+};
+
 static struct bq27xxx_dm_reg *bq27xxx_dm_regs[] = {
 	[BQ27425] = bq27425_dm_regs,
+	[BQ27421] = bq27421_dm_regs, /* and BQ27441 */
+/*	[BQ27621] = bq27621_dm_regs, */
 };
 
 static u32 bq27xxx_unseal_keys[] = {
 	[BQ27425] = 0x04143672,
+	[BQ27421] = 0x80008000, /* and BQ27441 */
+/*	[BQ27621] = 0x80008000, */
 };
 
 
