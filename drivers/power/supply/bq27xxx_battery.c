@@ -518,15 +518,15 @@ static struct bq27xxx_dm_reg bq27621_dm_regs[] = { /* not tested */
 };
 
 static struct bq27xxx_dm_reg *bq27xxx_dm_regs[] = {
-	[BQ27425] = bq27425_dm_regs,
 	[BQ27421] = bq27421_dm_regs, /* and BQ27441 */
-/*	[BQ27621] = bq27621_dm_regs, */
+	[BQ27425] = bq27425_dm_regs,
+/*	[BQ27621] = */ bq27621_dm_regs,
 };
 
 static u32 bq27xxx_unseal_keys[] = {
-	[BQ27425] = 0x04143672,
 	[BQ27421] = 0x80008000, /* and BQ27441 */
-/*	[BQ27621] = 0x80008000, */
+	[BQ27425] = 0x04143672,
+/*	[BQ27621] = */ 0x80008000,
 };
 
 
