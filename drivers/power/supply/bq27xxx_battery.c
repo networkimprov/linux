@@ -467,8 +467,17 @@ static LIST_HEAD(bq27xxx_battery_devices);
 #define BQ27XXX_SOFT_RESET		0x42
 
 struct bq27xxx_dm_buf {
+	u8 class;
+	u8 block;
 	u8 a[32];
+	bool updt;
 };
+
+#define BQ27XXX_DM_BUF(di, i) { \
+	.class = bq27xxx_dm_regs[(di)->chip][i].subclass_id, \
+	.block = bq27xxx_dm_regs[(di)->chip][i].offset / sizeof ((struct bq27xxx_dm_buf*)0)->a, \
+	.updt = false, \
+}
 
 struct bq27xxx_dm_reg {
 	u8 subclass_id;
@@ -476,11 +485,6 @@ struct bq27xxx_dm_reg {
 	u8 bytes;
 	unsigned int min, max;
 };
-
-#define BQ27XXX_DM_SUPPORTED(r) ( \
-	   (r)->bytes == 2 \
-	&& (r)->offset <= sizeof ((struct bq27xxx_dm_buf*)0)->a - (r)->bytes \
-)
 
 enum bq27xxx_dm_reg_id {
 	BQ27XXX_DM_DESIGN_CAPACITY = 0,
@@ -598,16 +602,15 @@ static u8 bq27xxx_battery_checksum(struct bq27xxx_dm_buf *buf)
 }
 
 static int bq27xxx_battery_read_dm_block(struct bq27xxx_device_info *di,
-					 struct bq27xxx_dm_buf *buf,
-					 u8 class)
+					 struct bq27xxx_dm_buf *buf)
 {
 	int ret;
 
-	ret = di->bus.write(di, BQ27XXX_DATA_CLASS, class, true);
+	ret = di->bus.write(di, BQ27XXX_DATA_CLASS, buf->class, true);
 	if (ret < 0)
 		goto out;
 
-	ret = di->bus.write(di, BQ27XXX_DATA_BLOCK, 0, true);
+	ret = di->bus.write(di, BQ27XXX_DATA_BLOCK, buf->block, true);
 	if (ret < 0)
 		goto out;
 
@@ -636,29 +639,32 @@ out:
 static int bq27xxx_battery_print_config(struct bq27xxx_device_info *di)
 {
 	struct bq27xxx_dm_reg *reg = bq27xxx_dm_regs[di->chip];
-	struct bq27xxx_dm_buf buf;
+	struct bq27xxx_dm_buf buf = { .class = 0xFF };
 	int ret, i;
-
-	ret = bq27xxx_battery_read_dm_block(di, &buf, reg->subclass_id);
-	if (ret < 0)
-		return ret;
 
 	for (i = 0; i < BQ27XXX_DM_END; i++, reg++) {
 		const char* str = bq27xxx_dm_reg_name[i];
 
-		if (!BQ27XXX_DM_SUPPORTED(reg)) {
-			dev_warn(di->dev, "unsupported config register %s\n", str);
-			continue;
+		if (buf.class != reg->subclass_id
+		 || buf.block != reg->offset / sizeof buf.a) {
+			buf.class = reg->subclass_id;
+			buf.block = reg->offset / sizeof buf.a;
+			ret = bq27xxx_battery_read_dm_block(di, &buf);
+			if (ret < 0)
+				return ret;
 		}
 
-		dev_info(di->dev, "config register %s set at %d\n", str,
-			 be16_to_cpup((u16 *) &buf.a[reg->offset]));
+		if (reg->bytes == 2)
+			dev_info(di->dev, "config register %s set at %d\n", str,
+				 be16_to_cpup((u16 *) &buf.a[reg->offset % sizeof buf.a]));
+		else
+			dev_warn(di->dev, "unsupported config register %s\n", str);
 	}
 
 	return 0;
 }
 
-static bool bq27xxx_battery_update_dm_block(struct bq27xxx_device_info *di,
+static void bq27xxx_battery_update_dm_block(struct bq27xxx_device_info *di,
 					    struct bq27xxx_dm_buf *buf,
 					    enum bq27xxx_dm_reg_id reg_id,
 					    unsigned int val)
@@ -666,80 +672,64 @@ static bool bq27xxx_battery_update_dm_block(struct bq27xxx_device_info *di,
 	struct bq27xxx_dm_reg *reg = &bq27xxx_dm_regs[di->chip][reg_id];
 	u16 *prev;
 
-	if (!BQ27XXX_DM_SUPPORTED(reg))
-		return false;
+	if (reg->bytes != 2)
+		return;
 
-	prev = (u16 *) &buf->a[reg->offset];
+	prev = (u16 *) &buf->a[reg->offset % sizeof buf->a];
 
 	if (be16_to_cpup(prev) == val)
-		return false;
+		return;
 
 	*prev = cpu_to_be16(val);
+	buf->updt = true;
 
-	return true;
+	return;
 }
 
 static int bq27xxx_battery_write_dm_block(struct bq27xxx_device_info *di,
-					  struct bq27xxx_dm_buf *buf,
-					  u8 class)
+					  struct bq27xxx_dm_buf *buf)
 {
-	bool cfgup = di->chip == BQ27425 || di->chip == BQ27421; /* || BQ27441 || BQ27621 */
 	int ret;
 
-	if (cfgup) {
-		ret = di->bus.write(di, BQ27XXX_CONTROL, BQ27XXX_SET_CFGUPDATE, false);
-		if (ret < 0)
-			goto out1;
-	}
-
-	ret = di->bus.write(di, BQ27XXX_DATA_CLASS, class, true);
+	ret = di->bus.write(di, BQ27XXX_DATA_CLASS, buf->class, true);
 	if (ret < 0)
-		goto out2;
+		goto out;
 
-	ret = di->bus.write(di, BQ27XXX_DATA_BLOCK, 0, true);
+	ret = di->bus.write(di, BQ27XXX_DATA_BLOCK, buf->block, true);
 	if (ret < 0)
-		goto out2;
+		goto out;
 
 	usleep_range(1000, 1500);
 
 	ret = di->bus.write_bulk(di, BQ27XXX_BLOCK_DATA, buf->a, sizeof buf->a);
 	if (ret < 0)
-		goto out2;
+		goto out;
 
 	ret = di->bus.write(di, BQ27XXX_BLOCK_DATA_CHECKSUM,
 			    bq27xxx_battery_checksum(buf), true);
 	if (ret < 0)
-		goto out2;
+		goto out;
 
 	usleep_range(1000, 1500);
 
-	ret = di->bus.write(di, BQ27XXX_DATA_BLOCK, 0, true);
+	ret = di->bus.write(di, BQ27XXX_DATA_BLOCK, buf->block, true);
 	if (ret < 0)
-		goto out2;
+		goto out;
 
 	usleep_range(1000, 1500);
 
 	ret = di->bus.read(di, BQ27XXX_BLOCK_DATA_CHECKSUM, true);
 	if (ret < 0)
-		goto out2;
+		goto out;
 
 	if ((u8)ret != bq27xxx_battery_checksum(buf)) {
 		ret = -EINVAL;
-		goto out2;
-	}
-
-	if (cfgup) {
-		ret = di->bus.write(di, BQ27XXX_CONTROL, BQ27XXX_SOFT_RESET, false);
-		if (ret < 0)
-			goto out1;
+		goto out;
 	}
 
 	return 0;
 
-out2:
-	if (cfgup)
-		di->bus.write(di, BQ27XXX_CONTROL, BQ27XXX_SOFT_RESET, false);
-out1:
+out:
 	dev_err(di->dev, "bus error in %s: %d\n", __func__, ret);
 	return ret;
 }
@@ -747,34 +737,70 @@ out1:
 static int bq27xxx_battery_set_config(struct bq27xxx_device_info *di,
 				      struct power_supply_battery_info *info)
 {
-	struct bq27xxx_dm_reg *reg = bq27xxx_dm_regs[di->chip];
-	struct bq27xxx_dm_buf buf;
+	struct bq27xxx_dm_buf bd = BQ27XXX_DM_BUF(di, BQ27XXX_DM_DESIGN_ENERGY);
+	struct bq27xxx_dm_buf bt = BQ27XXX_DM_BUF(di, BQ27XXX_DM_TERMINATE_VOLTAGE);
 	int ret;
-
-	ret = bq27xxx_battery_read_dm_block(di, &buf, reg->subclass_id);
-	if (ret < 0)
-		return ret;
+	bool cfgup;
 
 	if (info->charge_full_design_uah != -EINVAL
 	 && info->energy_full_design_uwh != -EINVAL) {
-		ret |= bq27xxx_battery_update_dm_block(di, &buf,
+		ret = bq27xxx_battery_read_dm_block(di, &bd);
+		if (ret < 0)
+			return ret;
+		/* assume design energy & capacity are in same block */
+		bq27xxx_battery_update_dm_block(di, &bd,
 					BQ27XXX_DM_DESIGN_CAPACITY,
 					info->charge_full_design_uah / 1000);
-		ret |= bq27xxx_battery_update_dm_block(di, &buf,
+		bq27xxx_battery_update_dm_block(di, &bd,
 					BQ27XXX_DM_DESIGN_ENERGY,
 					info->energy_full_design_uwh / 1000);
 	}
 
-	if (info->voltage_min_design_uv != -EINVAL)
-		ret |= bq27xxx_battery_update_dm_block(di, &buf,
+	if (info->voltage_min_design_uv != -EINVAL) {
+		bool same = bd.updt && bd.class == bt.class && bd.block == bt.block;
+		if (!same) {
+			ret = bq27xxx_battery_read_dm_block(di, &bt);
+			if (ret < 0)
+				return ret;
+		}
+		bq27xxx_battery_update_dm_block(di, same ? &bd : &bt,
 					BQ27XXX_DM_TERMINATE_VOLTAGE,
 					info->voltage_min_design_uv / 1000);
+	}
 
-	if (!ret)
+	if (!bd.updt && !bt.updt)
 		return 0;
 
 	dev_info(di->dev, "updating NVM settings\n");
-	return bq27xxx_battery_write_dm_block(di, &buf, reg->subclass_id);
+
+	cfgup = di->chip == BQ27425 || di->chip == BQ27421; /* || BQ27441 || BQ27621 */
+	if (cfgup) {
+		ret = di->bus.write(di, BQ27XXX_CONTROL, BQ27XXX_SET_CFGUPDATE, false);
+		if (ret < 0)
+			return ret;
+	}
+	
+	if (bd.updt) {
+		ret = bq27xxx_battery_write_dm_block(di, &bd);
+		if (ret < 0)
+			goto out;
+	}
+	
+	if (bt.updt) {
+		ret = bq27xxx_battery_write_dm_block(di, &bt);
+		if (ret < 0)
+			goto out;
+	}
+
+	if (cfgup)
+		return di->bus.write(di, BQ27XXX_CONTROL, BQ27XXX_SOFT_RESET, false);
+
+	return 0;
+
+out:
+	if (cfgup)
+		di->bus.write(di, BQ27XXX_CONTROL, BQ27XXX_SOFT_RESET, false);
+	return ret;
 }
 
 void bq27xxx_battery_settings(struct bq27xxx_device_info *di)
