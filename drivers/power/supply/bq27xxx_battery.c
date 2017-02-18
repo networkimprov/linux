@@ -470,13 +470,13 @@ struct bq27xxx_dm_buf {
 	u8 class;
 	u8 block;
 	u8 a[32];
-	bool updt;
+	bool full, updt;
 };
 
 #define BQ27XXX_DM_BUF(di, i) { \
 	.class = bq27xxx_dm_regs[(di)->chip][i].subclass_id, \
 	.block = bq27xxx_dm_regs[(di)->chip][i].offset / sizeof ((struct bq27xxx_dm_buf*)0)->a, \
-	.updt = false, \
+	.full = false, \
 }
 
 struct bq27xxx_dm_reg {
@@ -629,6 +629,8 @@ static int bq27xxx_battery_read_dm_block(struct bq27xxx_device_info *di,
 		goto out;
 	}
 
+	buf->full = true;
+	buf->updt = false;
 	return 0;
 
 out:
@@ -681,8 +683,8 @@ static void bq27xxx_battery_update_dm_block(struct bq27xxx_device_info *di,
 		return;
 
 	*prev = cpu_to_be16(val);
-	buf->updt = true;
 
+	buf->updt = true;
 	return;
 }
 
@@ -727,6 +729,7 @@ static int bq27xxx_battery_write_dm_block(struct bq27xxx_device_info *di,
 		goto out;
 	}
 
+	buf->updt = false;
 	return 0;
 
 out:
@@ -757,7 +760,7 @@ static int bq27xxx_battery_set_config(struct bq27xxx_device_info *di,
 	}
 
 	if (info->voltage_min_design_uv != -EINVAL) {
-		bool same = bd.updt && bd.class == bt.class && bd.block == bt.block;
+		bool same = bd.full && bd.class == bt.class && bd.block == bt.block;
 		if (!same) {
 			ret = bq27xxx_battery_read_dm_block(di, &bt);
 			if (ret < 0)
