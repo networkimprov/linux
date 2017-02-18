@@ -486,7 +486,6 @@ struct bq27xxx_dm_buf {
 #define BQ27XXX_DM_BUF(di, i) { \
 	.class = bq27xxx_dm_regs[(di)->chip][i].subclass_id, \
 	.block = bq27xxx_dm_regs[(di)->chip][i].offset / sizeof ((struct bq27xxx_dm_buf*)0)->a, \
-	.full = false, \
 }
 
 static inline bool bq27xxx_dm_buf_set(struct bq27xxx_dm_buf *buf,
