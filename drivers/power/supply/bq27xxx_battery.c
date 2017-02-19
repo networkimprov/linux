@@ -669,7 +669,7 @@ static void print_nvm(struct bq27xxx_device_info *di) {
 	enum { h1, h2, i2, u1, f4 };
 	static struct {
 		int offset, type;
-	} class82[][10] = {
+	} class82[][10] = {{
 		{ 2, h1},
 		{ 3, i2},
 		{ 5, h2},
@@ -688,7 +688,7 @@ static void print_nvm(struct bq27xxx_device_info *di) {
 		{39, u1},
 		{40, f4},
 		{99, 0},
-	};
+	}};
 	for (b=0; b<2; ++b) {
 		buf.block = b;
 		bq27xxx_battery_read_dm_block(di, &buf);
@@ -697,10 +697,10 @@ static void print_nvm(struct bq27xxx_device_info *di) {
 			u8* c = &buf.a[o % 32];
 			switch (class82[b][a].type) {
 			case h1: dev_info(di->dev, "o %d, v %02x\n", o, *c); break;
-			case h2: dev_info(di->dev, "o %d, v %04x\n", o, be16_to_cpup((u16*)c)); break;
-			case i2: dev_info(di->dev, "o %d, v %d\n",   o, be16_to_cpup((s16*)c)); break;
+			case h2: dev_info(di->dev, "o %d, v %04x\n", o, be16_to_cpup(c)); break;
+			case i2: dev_info(di->dev, "o %d, v %d\n",   o, (s16)be16_to_cpup(c)); break;
 			case u1: dev_info(di->dev, "o %d, v %u\n",   o, *c); break;
-			case f4: dev_info(di->dev, "o %d, v %f\n",   o, be32_to_cpup((s32*)c)); break;
+			case f4: dev_info(di->dev, "o %d, v %f\n",   o, (double)be32_to_cpup(c)); break;
 			}
 		}
 	}
