@@ -663,20 +663,49 @@ out:
 	return ret;
 }
 
-enum { h1, h2, i2, u1 };
-static struct {
-	int offset, type;
-} class82[] = {
-	{ 2, h1},
-	{ 3, i2},
-	{ 5, h2},
-	{12, i2},
-	{14, i2},
-	{18, i2},
-	{22, i2},
-	{29, u1},
-	{30, i2},
-};
+static void print_nvm(struct bq27xxx_device_info *di) {
+	struct bq27xxx_dm_buf buf = { .class = 82 };
+	int a, b;
+	enum { h1, h2, i2, u1, f4 };
+	static struct {
+		int offset, type;
+	} class82[][10] = {
+		{ 2, h1},
+		{ 3, i2},
+		{ 5, h2},
+		{12, i2},
+		{14, i2},
+		{18, i2},
+		{22, i2},
+		{29, u1},
+		{30, i2},
+		{99, 0},
+	}, {
+		{32, i2},
+		{34, i2},
+		{36, i2},
+		{38, u1},
+		{39, u1},
+		{40, f4},
+		{99, 0},
+	};
+	for (b=0; b<2; ++b) {
+		buf.block = b;
+		bq27xxx_battery_read_dm_block(di, &buf);
+		for (a=0; class82[b][a].offset != 99; ++a) {
+			int o = class82[b][a].offset;
+			u8* c = &buf.a[o % 32];
+			switch (class82[b][a].type) {
+			case h1: dev_info(di->dev, "o %d, v %02x\n", o, *c); break;
+			case h2: dev_info(di->dev, "o %d, v %04x\n", o, be16_to_cpup((u16*)c)); break;
+			case i2: dev_info(di->dev, "o %d, v %d\n",   o, be16_to_cpup((s16*)c)); break;
+			case u1: dev_info(di->dev, "o %d, v %u\n",   o, *c); break;
+			case f4: dev_info(di->dev, "o %d, v %f\n",   o, be32_to_cpup((s32*)c)); break;
+			}
+		}
+	}
+}
+
 static int bq27xxx_battery_print_config(struct bq27xxx_device_info *di)
 {
 	struct bq27xxx_dm_reg *reg = bq27xxx_dm_regs[di->chip];
@@ -690,15 +719,6 @@ static int bq27xxx_battery_print_config(struct bq27xxx_device_info *di)
 			ret = bq27xxx_battery_read_dm_block(di, &buf);
 			if (ret < 0)
 				return ret;
-			for (int a=0; a<9; ++a) {
-				int o = class82[a].offset;
-				switch (class82[a].type) {
-				case h1: dev_info(di->dev, "o %d, v %02x\n", o, buf.a[o]);
-				case h2: dev_info(di->dev, "o %d, v %04x\n", o, be16_to_cpup((u16*)&buf.a[o]));
-				case i2: dev_info(di->dev, "o %d, v %d\n",   o, be16_to_cpup((u16*)&buf.a[o]));
-				case u1: dev_info(di->dev, "o %d, v %u\n",   o, buf.a[o]);
-				}
-			}
 		}
 
 		if (reg->bytes == 2)
@@ -707,6 +727,7 @@ static int bq27xxx_battery_print_config(struct bq27xxx_device_info *di)
 		else
 			dev_warn(di->dev, "unsupported config register %s\n", str);
 	}
+	print_nvm(di);
 
 	return 0;
 }
