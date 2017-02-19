@@ -592,22 +592,17 @@ static int bq27xxx_battery_set_seal_state(struct bq27xxx_device_info *di,
 {
 	u32 key = bq27xxx_unseal_keys[di->chip];
 	int ret;
-	dev_info(di->dev, "%u %u, %u %u\n", (u16)(key>>16), (key>>16)&0xffff, (u16)key, key&0xffff);
 
 	if (state) {
 		ret = di->bus.write(di, BQ27XXX_CONTROL, BQ27XXX_SEALED, false);
 		if (ret < 0)
 			goto out;
 	} else {
-		ret = di->bus.write(di, BQ27XXX_CONTROL, (key >> 16) & 0xffff, false);
+		ret = di->bus.write(di, BQ27XXX_CONTROL, (u16)(key >> 16), false);
 		if (ret < 0)
 			goto out;
 
-		ret = di->bus.write(di, BQ27XXX_CONTROL, key & 0xffff, false);
-		if (ret < 0)
-			goto out;
-
-		ret = di->bus.write(di, BQ27XXX_BLOCK_DATA_CONTROL, 0, true);
+		ret = di->bus.write(di, BQ27XXX_CONTROL, (u16)key, false);
 		if (ret < 0)
 			goto out;
 	}
@@ -808,13 +803,19 @@ static int bq27xxx_battery_set_config(struct bq27xxx_device_info *di,
 		if (ret < 0)
 			return ret;
 	}
-	
+
+	ret = di->bus.write(di, BQ27XXX_BLOCK_DATA_CONTROL, 0, true);
+	if (ret < 0) {
+		dev_err(di->dev, "bus error in %s: %d\n", __func__, ret);
+		goto out;
+	}
+
 	if (bd.updt) {
 		ret = bq27xxx_battery_write_dm_block(di, &bd);
 		if (ret < 0)
 			goto out;
 	}
-	
+
 	if (bt.updt) {
 		ret = bq27xxx_battery_write_dm_block(di, &bt);
 		if (ret < 0)
