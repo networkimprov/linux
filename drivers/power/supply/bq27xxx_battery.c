@@ -44,7 +44,6 @@
 #include <linux/param.h>
 #include <linux/jiffies.h>
 #include <linux/workqueue.h>
-#include <linux/delay.h>
 #include <linux/platform_device.h>
 #include <linux/power_supply.h>
 #include <linux/slab.h>
@@ -466,6 +465,8 @@ static LIST_HEAD(bq27xxx_battery_devices);
 #define BQ27XXX_SET_CFGUPDATE		0x13
 #define BQ27XXX_SOFT_RESET		0x42
 
+#define BQ27XXX_MSLEEP(i) usleep_range((i)*1000, (i)*1000+500)
+
 struct bq27xxx_dm_reg {
 	u8 subclass_id;
 	u8 offset;
@@ -638,7 +639,7 @@ static int bq27xxx_battery_read_dm_block(struct bq27xxx_device_info *di,
 	if (ret < 0)
 		goto out;
 
-	usleep_range(1000, 1500);
+	BQ27XXX_MSLEEP(1);
 
 	ret = di->bus.read_bulk(di, BQ27XXX_BLOCK_DATA, buf->a, sizeof buf->a);
 	if (ret < 0)
@@ -722,7 +723,7 @@ static int bq27xxx_battery_write_dm_block(struct bq27xxx_device_info *di,
 	if (ret < 0)
 		goto out;
 
-	usleep_range(1000, 1500);
+	BQ27XXX_MSLEEP(1);
 
 	ret = di->bus.write_bulk(di, BQ27XXX_BLOCK_DATA, buf->a, sizeof buf->a);
 	if (ret < 0)
@@ -733,13 +734,13 @@ static int bq27xxx_battery_write_dm_block(struct bq27xxx_device_info *di,
 	if (ret < 0)
 		goto out;
 
-	usleep_range(1000, 1500);
+	BQ27XXX_MSLEEP(35);
 
 	ret = di->bus.write(di, BQ27XXX_DATA_BLOCK, buf->block, true);
 	if (ret < 0)
 		goto out;
 
-	usleep_range(1000, 1500);
+	BQ27XXX_MSLEEP(1);
 
 	ret = di->bus.read(di, BQ27XXX_BLOCK_DATA_CHECKSUM, true);
 	if (ret < 0)
