@@ -696,11 +696,11 @@ static void print_nvm(struct bq27xxx_device_info *di) {
 			int o = class82[b][a].offset;
 			u8* c = &buf.a[o % 32];
 			switch (class82[b][a].type) {
-			case h1: dev_info(di->dev, "o %d, v %02x\n", o, *c); break;
-			case h2: dev_info(di->dev, "o %d, v %04x\n", o, be16_to_cpup(c)); break;
-			case i2: dev_info(di->dev, "o %d, v %d\n",   o, (s16)be16_to_cpup(c)); break;
-			case u1: dev_info(di->dev, "o %d, v %u\n",   o, *c); break;
-			case f4: dev_info(di->dev, "o %d, v %f\n",   o, (double)be32_to_cpup(c)); break;
+			case h1: dev_info(di->dev, "o %d, v %02x\n", o,                         *c); break;
+			case h2: dev_info(di->dev, "o %d, v %04x\n", o,      be16_to_cpup((u16*)c)); break;
+			case i2: dev_info(di->dev, "o %d, v %d\n",   o, (s16)be16_to_cpup((u16*)c)); break;
+			case u1: dev_info(di->dev, "o %d, v %u\n",   o,                         *c); break;
+			case f4: dev_info(di->dev, "o %d, v %08x\n", o,      be32_to_cpup((u32*)c)); break;
 			}
 		}
 	}
