@@ -663,6 +663,20 @@ out:
 	return ret;
 }
 
+enum { h1, h2, i2, u1 };
+static struct {
+	int offset, type;
+} class82[] = {
+	{ 2, h1},
+	{ 3, i2},
+	{ 5, h2},
+	{12, i2},
+	{14, i2},
+	{18, i2},
+	{22, i2},
+	{29, u1},
+	{30, i2},
+};
 static int bq27xxx_battery_print_config(struct bq27xxx_device_info *di)
 {
 	struct bq27xxx_dm_reg *reg = bq27xxx_dm_regs[di->chip];
@@ -676,6 +690,15 @@ static int bq27xxx_battery_print_config(struct bq27xxx_device_info *di)
 			ret = bq27xxx_battery_read_dm_block(di, &buf);
 			if (ret < 0)
 				return ret;
+			for (int a=0; a<9; ++a) {
+				int o = class82[a].offset;
+				switch (class82[a].type) {
+				case h1: dev_info(di->dev, "o %d, v %02x\n", o, buf.a[o]);
+				case h2: dev_info(di->dev, "o %d, v %04x\n", o, be16_to_cpup((u16*)&buf.a[o]));
+				case i2: dev_info(di->dev, "o %d, v %d\n",   o, be16_to_cpup((u16*)&buf.a[o]));
+				case u1: dev_info(di->dev, "o %d, v %u\n",   o, buf.a[o]);
+				}
+			}
 		}
 
 		if (reg->bytes == 2)
@@ -705,6 +728,8 @@ static void bq27xxx_battery_update_dm_block(struct bq27xxx_device_info *di,
 		return;
 
 	*prev = cpu_to_be16(val);
+	dev_info(di->dev, "update chip %d, class %u, block %u, offset %u, value %u\n",
+		 di->chip, buf->class, buf->block, reg->offset % sizeof buf->a, val);
 
 	buf->updt = true;
 	return;
