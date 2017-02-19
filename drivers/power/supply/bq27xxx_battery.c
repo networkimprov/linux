@@ -780,7 +780,7 @@ static int bq27xxx_battery_write_dm_block(struct bq27xxx_device_info *di,
 	if (ret < 0)
 		goto out;
 
-	BQ27XXX_MSLEEP(35);
+	BQ27XXX_MSLEEP(350);
 
 	ret = di->bus.write(di, BQ27XXX_DATA_BLOCK, buf->block, true);
 	if (ret < 0)
