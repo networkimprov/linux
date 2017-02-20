@@ -714,7 +714,7 @@ static void bq27xxx_battery_print_config(struct bq27xxx_device_info *di)
 				continue;
 
 		if (reg->bytes == 2)
-			dev_info(di->dev, "config register %s set at %d\n", str,
+			dev_info(di->dev, "config register %s is %d\n", str,
 				 be16_to_cpup(BQ27XXX_DM_BUF_PTR(buf, reg)));
 		else
 			dev_warn(di->dev, "unsupported config register %s\n", str);
