@@ -806,11 +806,11 @@ out:
 }
 
 static void fix_nvm(struct bq27xxx_device_info *di, struct bq27xxx_dm_buf* buf) {
-	buf->a[2] = 0x04;
-	*((u16*)&buf->a[5]) = 0x89F8;
-	*((s16*)&buf->a[22]) = 50;
+	buf->a[2] = 4;
+	*((u16*)&buf->a[5]) = cpu_to_be16(0x89F8);
+	*((s16*)&buf->a[22]) = cpu_to_be16(50);
 	buf->a[29] = 1;
-	*((s16*)&buf->a[30]) = 75;
+	*((s16*)&buf->a[30]) = cpu_to_be16(75);
 }
 
 static int bq27xxx_battery_set_config(struct bq27xxx_device_info *di,
