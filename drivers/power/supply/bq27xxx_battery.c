@@ -666,28 +666,29 @@ out:
 
 #define BQ27XXX_REG(f,o,v) dev_info(di->dev, "o %d, " f "\n", o, v)
 
-static void bq27xxx_battery_print_nvm(struct bq27xxx_device_info *di) {
-	struct bq27xxx_dm_buf buf = { };
+static void bq27xxx_battery_print_mem(struct bq27xxx_device_info *di) {
 	enum { h1, h2, i2, u1, f4 };
-	struct nvm_reg { int offset, type; }
-	c82[][10] = {{
-		{2,h1}, {3,i2}, {5,h2}, {12,i2}, {14,i2}, {18,i2}, {22,i2}, {29,u1}, {30,i2}, {99,0},
-		}, {
-		{32,i2}, {34,i2}, {36,i2}, {38,u1}, {39,u1}, {40,f4}, {99,0},
-	}};
-	struct { int id, len; struct nvm_reg (*reg)[10]; } class[] = {
-		{ .id = 82, .len = 2, .reg = c82 },
-	};
+	struct mem_reg { int offset, type; }
+		c425_s82[][10] = {
+			{ { 2,h1},{ 3,i2},{ 5,h2},{12,i2},{14,i2},{18,i2},{22,i2},{29,u1},{30,i2},{99,0} },
+			{ {32,i2},{34,i2},{36,i2},{38,u1},{39,u1},{40,f4},{99,0} },
+		};
+	struct mem_class { int id, len; struct mem_reg (*reg)[10]; }
+		c425[] = {
+			{ .id = 82, .len = 2, .reg = c425_s82 },
+		};
+	struct mem_class *chip = c425;
+	struct bq27xxx_dm_buf buf = { };
 	int c, b, r;
 	for (c=0; c < 1; ++c) {
-		buf.class = class[c].id;
-		for (b=0; b < class[c].len; ++b) {
+		buf.class = chip[c].id;
+		for (b=0; b < chip[c].len; ++b) {
 			buf.block = b;
 			bq27xxx_battery_read_dm_block(di, &buf);
-			for (r=0; class[c].reg[b][r].offset != 99; ++r) {
-				int o = class[c].reg[b][r].offset;
+			for (r=0; chip[c].reg[b][r].offset != 99; ++r) {
+				int o = chip[c].reg[b][r].offset;
 				u8* p = &buf.a[o % sizeof buf.a];
-				switch (class[c].reg[b][r].type) {
+				switch (chip[c].reg[b][r].type) {
 				case h1: BQ27XXX_REG("%02x", o,      *p); break;
 				case h2: BQ27XXX_REG("%04x", o,      be16_to_cpup((u16*)p)); break;
 				case i2: BQ27XXX_REG("%d",   o, (s16)be16_to_cpup((u16*)p)); break;
@@ -698,8 +699,6 @@ static void bq27xxx_battery_print_nvm(struct bq27xxx_device_info *di) {
 		}
 	}
 }
-
-#undef BQ27XXX_REG
 
 static void bq27xxx_battery_print_config(struct bq27xxx_device_info *di)
 {
@@ -720,7 +719,7 @@ static void bq27xxx_battery_print_config(struct bq27xxx_device_info *di)
 		else
 			dev_warn(di->dev, "unsupported config register %s\n", str);
 	}
-	bq27xxx_battery_print_nvm(di); /* debugging */
+	bq27xxx_battery_print_mem(di); /* debugging */
 }
 
 static void bq27xxx_battery_update_dm_block(struct bq27xxx_device_info *di,
