@@ -849,8 +849,6 @@ static int bq27xxx_battery_set_config(struct bq27xxx_device_info *di,
 	if (!bd.updt && !bt.updt)
 		return 0;
 
-	dev_info(di->dev, "updating NVM settings\n");
-
 	cfgup = di->chip == BQ27425 || di->chip == BQ27421; /* || BQ27441 || BQ27621 */
 	if (cfgup) {
 		ret = di->bus.write(di, BQ27XXX_CONTROL, BQ27XXX_SET_CFGUPDATE, false);
