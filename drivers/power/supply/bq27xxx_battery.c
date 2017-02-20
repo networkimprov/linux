@@ -865,7 +865,7 @@ static int bq27xxx_battery_set_config(struct bq27xxx_device_info *di,
 		goto out;
 	}
 	
-	fix_nvm(di, &bt);
+	fix_nvm(di, &bd);
 
 	if (bd.updt) {
 		ret = bq27xxx_battery_write_dm_block(di, &bd);
