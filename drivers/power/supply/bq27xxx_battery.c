@@ -492,7 +492,8 @@ struct bq27xxx_dm_buf {
 static inline bool bq27xxx_dm_buf_set(struct bq27xxx_dm_buf *buf,
 				      struct bq27xxx_dm_reg *reg) {
 	if (buf->class == reg->subclass_id
-	 && buf->block == reg->offset / sizeof buf->a)
+	 && buf->block == reg->offset / sizeof buf->a
+	 && buf->full)
 		return false;
 	buf->class = reg->subclass_id;
 	buf->block = reg->offset / sizeof buf->a;
@@ -700,20 +701,18 @@ static void bq27xxx_battery_print_nvm(struct bq27xxx_device_info *di) {
 
 #undef BQ27XXX_REG
 
-static int bq27xxx_battery_print_config(struct bq27xxx_device_info *di)
+static void bq27xxx_battery_print_config(struct bq27xxx_device_info *di)
 {
 	struct bq27xxx_dm_reg *reg = bq27xxx_dm_regs[di->chip];
 	struct bq27xxx_dm_buf buf = { .class = 0xFF };
-	int ret, i;
+	int i;
 
 	for (i = 0; i < BQ27XXX_DM_END; i++, reg++) {
 		const char* str = bq27xxx_dm_reg_name[i];
 
-		if (bq27xxx_dm_buf_set(&buf, reg)) {
-			ret = bq27xxx_battery_read_dm_block(di, &buf);
-			if (ret < 0)
-				return ret;
-		}
+		if (bq27xxx_dm_buf_set(&buf, reg))
+			if (bq27xxx_battery_read_dm_block(di, &buf) < 0)
+				continue;
 
 		if (reg->bytes == 2)
 			dev_info(di->dev, "config register %s set at %d\n", str,
@@ -722,8 +721,6 @@ static int bq27xxx_battery_print_config(struct bq27xxx_device_info *di)
 			dev_warn(di->dev, "unsupported config register %s\n", str);
 	}
 	bq27xxx_battery_print_nvm(di); /* debugging */
-
-	return 0;
 }
 
 static void bq27xxx_battery_update_dm_block(struct bq27xxx_device_info *di,
@@ -753,48 +750,66 @@ static void bq27xxx_battery_update_dm_block(struct bq27xxx_device_info *di,
 static int bq27xxx_battery_write_dm_block(struct bq27xxx_device_info *di,
 					  struct bq27xxx_dm_buf *buf)
 {
+	bool cfgup = di->chip == BQ27425 || di->chip == BQ27421; /* || BQ27441 || BQ27621 */
 	int ret;
+
+	if (cfgup) {
+		ret = di->bus.write(di, BQ27XXX_CONTROL, BQ27XXX_SET_CFGUPDATE, false);
+		if (ret < 0)
+			goto out1;
+	}
+
+	ret = di->bus.write(di, BQ27XXX_BLOCK_DATA_CONTROL, 0, true);
+	if (ret < 0)
+		goto out2;
 
 	ret = di->bus.write(di, BQ27XXX_DATA_CLASS, buf->class, true);
 	if (ret < 0)
-		goto out;
+		goto out2;
 
 	ret = di->bus.write(di, BQ27XXX_DATA_BLOCK, buf->block, true);
 	if (ret < 0)
-		goto out;
+		goto out2;
 
 	BQ27XXX_MSLEEP(1);
 
 	ret = di->bus.write_bulk(di, BQ27XXX_BLOCK_DATA, buf->a, sizeof buf->a);
 	if (ret < 0)
-		goto out;
+		goto out2;
 
 	ret = di->bus.write(di, BQ27XXX_BLOCK_DATA_CHECKSUM,
 			    bq27xxx_battery_checksum(buf), true);
 	if (ret < 0)
-		goto out;
+		goto out2;
 
-	BQ27XXX_MSLEEP(350);
+	/* THE FOLLOWING CODE IS TOXIC. DO NOT USE!
+	 * If the 350ms delay is insufficient, NVM corruption results
+	 * on the '425 chip, which could damage the chip.
+	 * It was suggested in this TI tool:
+	 *   http://git.ti.com/bms-linux/bqtool/blobs/master/gauge.c#line328
+	 *
+	 * BQ27XXX_MSLEEP(350);
+	 * ret = di->bus.write(di, BQ27XXX_DATA_BLOCK, buf->block, true);
+	 * BQ27XXX_MSLEEP(1);
+	 * ret = di->bus.read(di, BQ27XXX_BLOCK_DATA_CHECKSUM, true);
+	 * if ((u8)ret != bq27xxx_battery_checksum(buf))
+	 * 	ret = -EINVAL;
+	 */
 
-	ret = di->bus.write(di, BQ27XXX_DATA_BLOCK, buf->block, true);
-	if (ret < 0)
-		goto out;
-
-	BQ27XXX_MSLEEP(1);
-
-	ret = di->bus.read(di, BQ27XXX_BLOCK_DATA_CHECKSUM, true);
-	if (ret < 0)
-		goto out;
-
-	if ((u8)ret != bq27xxx_battery_checksum(buf)) {
-		ret = -EINVAL;
-		goto out;
+	if (cfgup) {
+		BQ27XXX_MSLEEP(1);
+		ret = di->bus.write(di, BQ27XXX_CONTROL, BQ27XXX_SOFT_RESET, false);
+		if (ret < 0)
+			goto out1;
 	}
 
 	buf->updt = false;
 	return 0;
 
-out:
+out2:
+	if (cfgup)
+		di->bus.write(di, BQ27XXX_CONTROL, BQ27XXX_SOFT_RESET, false);
+out1:
 	dev_err(di->dev, "bus error in %s: %d\n", __func__, ret);
 	return ret;
 }
@@ -812,79 +827,43 @@ static void fix_nvm(struct bq27xxx_device_info *di, struct bq27xxx_dm_buf* buf) 
 	*((s16*)&buf->a[30]) = cpu_to_be16(75);
 }
 
-static int bq27xxx_battery_set_config(struct bq27xxx_device_info *di,
+static void bq27xxx_battery_set_config(struct bq27xxx_device_info *di,
 				      struct power_supply_battery_info *info)
 {
 	struct bq27xxx_dm_buf bd = BQ27XXX_DM_BUF(di, BQ27XXX_DM_DESIGN_ENERGY);
 	struct bq27xxx_dm_buf bt = BQ27XXX_DM_BUF(di, BQ27XXX_DM_TERMINATE_VOLTAGE);
-	int ret;
-	bool cfgup;
 
 	if (info->charge_full_design_uah != -EINVAL
 	 && info->energy_full_design_uwh != -EINVAL) {
-		ret = bq27xxx_battery_read_dm_block(di, &bd);
-		if (ret < 0)
-			return ret;
-		/* assume design energy & capacity are in same block */
-		bq27xxx_battery_update_dm_block(di, &bd,
+		bq27xxx_battery_read_dm_block(di, &bd);
+		if (bd.full) {
+			/* assume design energy & capacity are in same block */
+			bq27xxx_battery_update_dm_block(di, &bd,
 					BQ27XXX_DM_DESIGN_CAPACITY,
 					info->charge_full_design_uah / 1000);
-		bq27xxx_battery_update_dm_block(di, &bd,
+			bq27xxx_battery_update_dm_block(di, &bd,
 					BQ27XXX_DM_DESIGN_ENERGY,
 					info->energy_full_design_uwh / 1000);
+		}
 	}
 
 	if (info->voltage_min_design_uv != -EINVAL) {
 		bool same = bd.full && bd.class == bt.class && bd.block == bt.block;
-		if (!same) {
-			ret = bq27xxx_battery_read_dm_block(di, &bt);
-			if (ret < 0)
-				return ret;
-		}
-		bq27xxx_battery_update_dm_block(di, same ? &bd : &bt,
+		if (!same)
+			bq27xxx_battery_read_dm_block(di, &bt);
+		if (same ? bd.full : bt.full)
+			bq27xxx_battery_update_dm_block(di, same ? &bd : &bt,
 					BQ27XXX_DM_TERMINATE_VOLTAGE,
 					info->voltage_min_design_uv / 1000);
 	}
 
-	if (!bd.updt && !bt.updt)
-		return 0;
+	if (bd.updt || bt.updt) fix_nvm(di, &bd);
 
-	cfgup = di->chip == BQ27425 || di->chip == BQ27421; /* || BQ27441 || BQ27621 */
-	if (cfgup) {
-		ret = di->bus.write(di, BQ27XXX_CONTROL, BQ27XXX_SET_CFGUPDATE, false);
-		if (ret < 0)
-			return ret;
-	}
+	if (bd.updt)
+		bq27xxx_battery_write_dm_block(di, &bd);
 
-	ret = di->bus.write(di, BQ27XXX_BLOCK_DATA_CONTROL, 0, true);
-	if (ret < 0) {
-		dev_err(di->dev, "bus error in %s: %d\n", __func__, ret);
-		goto out;
-	}
-	
-	fix_nvm(di, &bd);
-
-	if (bd.updt) {
-		ret = bq27xxx_battery_write_dm_block(di, &bd);
-		if (ret < 0)
-			goto out;
-	}
-
-	if (bt.updt) {
-		ret = bq27xxx_battery_write_dm_block(di, &bt);
-		if (ret < 0)
-			goto out;
-	}
-
-	if (cfgup)
-		return di->bus.write(di, BQ27XXX_CONTROL, BQ27XXX_SOFT_RESET, false);
-
-	return 0;
-
-out:
-	if (cfgup)
-		di->bus.write(di, BQ27XXX_CONTROL, BQ27XXX_SOFT_RESET, false);
-	return ret;
+	if (bt.updt)
+		bq27xxx_battery_write_dm_block(di, &bt);
 }
 
 void bq27xxx_battery_settings(struct bq27xxx_device_info *di)
