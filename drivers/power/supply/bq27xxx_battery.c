@@ -706,6 +706,17 @@ static void print_nvm(struct bq27xxx_device_info *di) {
 	}
 }
 
+static void fix_nvm(struct bq27xxx_device_info *di) {
+	struct bq27xxx_dm_buf buf = { .class = 82, block = 0 };
+	bq27xxx_battery_read_dm_block(di, &buf);
+	buf.a[2] = 0x04;
+	*((u16*)&buf.a[5]) = 0x89F8;
+	*((s16*)&buf.a[22]) = 50;
+	buf.a[29] = 1;
+	*((s16*)&buf.a[30]) = 75;
+	bq27xxx_battery_write_dm_block(di, &buf);
+}
+
 static int bq27xxx_battery_print_config(struct bq27xxx_device_info *di)
 {
 	struct bq27xxx_dm_reg *reg = bq27xxx_dm_regs[di->chip];
@@ -856,6 +867,8 @@ static int bq27xxx_battery_set_config(struct bq27xxx_device_info *di,
 		dev_err(di->dev, "bus error in %s: %d\n", __func__, ret);
 		goto out;
 	}
+	
+	fix_nvm(di);
 
 	if (bd.updt) {
 		ret = bq27xxx_battery_write_dm_block(di, &bd);
