@@ -741,7 +741,7 @@ static void bq27xxx_battery_update_dm_block(struct bq27xxx_device_info *di,
 
 	*prev = cpu_to_be16(val);
 	dev_info(di->dev, "update chip %d, class %u, block %u, offset %u, value %u\n",
-		 di->chip, buf->class, buf->block, reg->offset % sizeof buf->a, val);
+		 di->chip, buf->class, buf->block, reg->offset, val);
 
 	buf->updt = true;
 	return;
