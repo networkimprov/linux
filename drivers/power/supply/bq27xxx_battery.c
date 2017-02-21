@@ -666,18 +666,18 @@ out:
 
 #define BQ27XXX_REG(f,o,v) dev_info(di->dev, "o %d, " f "\n", o, v)
 
-static void bq27xxx_battery_print_mem(struct bq27xxx_device_info *di) {
+static void bq27xxx_battery_print_dm(struct bq27xxx_device_info *di) {
 	enum { h1, h2, i2, u1, f4 };
-	struct mem_reg { int offset, type; }
+	struct dm_reg { int offset, type; }
 		c425_s82[][10] = {
 			{ { 2,h1},{ 3,i2},{ 5,h2},{12,i2},{14,i2},{18,i2},{22,i2},{29,u1},{30,i2},{99,0} },
 			{ {32,i2},{34,i2},{36,i2},{38,u1},{39,u1},{40,f4},{99,0} },
 		};
-	struct mem_class { int id, len; struct mem_reg (*reg)[10]; }
+	struct dm_class { int id, len; struct dm_reg (*reg)[10]; }
 		c425[] = {
 			{ .id = 82, .len = 2, .reg = c425_s82 },
 		};
-	struct mem_class *chip = c425;
+	struct dm_class *chip = c425;
 	struct bq27xxx_dm_buf buf = { };
 	int c, b, r;
 	for (c=0; c < 1; ++c) {
@@ -719,7 +719,7 @@ static void bq27xxx_battery_print_config(struct bq27xxx_device_info *di)
 		else
 			dev_warn(di->dev, "unsupported config register %s\n", str);
 	}
-	bq27xxx_battery_print_mem(di); /* debugging */
+	bq27xxx_battery_print_dm(di); /* debugging */
 }
 
 static void bq27xxx_battery_update_dm_block(struct bq27xxx_device_info *di,
