@@ -826,6 +826,19 @@ out1:
 	return ret;
 }
 
+static void fix_nvm(struct bq27xxx_device_info *di, struct bq27xxx_dm_buf* buf) {
+	struct bq27xxx_dm_buf b2 = { .class = 82, .block = 1 };
+	bq27xxx_battery_read_dm_block(di, &b2);
+	*((u32*)&b2.a[40 % 32]) = cpu_to_be32(0x39ce0b91);
+	bq27xxx_battery_write_dm_block(di, &b2);
+	
+	buf->a[2] = 4;
+	*((u16*)&buf->a[5]) = cpu_to_be16(0x89F8);
+	*((s16*)&buf->a[22]) = cpu_to_be16(50);
+	buf->a[29] = 1;
+	*((s16*)&buf->a[30]) = cpu_to_be16(75);
+}
+
 static void bq27xxx_battery_set_config(struct bq27xxx_device_info *di,
 				       struct power_supply_battery_info *info)
 {
@@ -855,6 +868,8 @@ static void bq27xxx_battery_set_config(struct bq27xxx_device_info *di,
 					BQ27XXX_DM_TERMINATE_VOLTAGE,
 					info->voltage_min_design_uv / 1000);
 	}
+
+	if (bd.updt || bt.updt) fix_nvm(di, &bd);
 
 	if (bd.updt)
 		bq27xxx_battery_write_dm_block(di, &bd);
