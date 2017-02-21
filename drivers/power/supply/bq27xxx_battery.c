@@ -664,27 +664,36 @@ out:
 	return ret;
 }
 
-/* Translate f4 floating point values to/from hexadecimal:
+/* Translate F4 floating point values to/from hexadecimal:
  *   perl -e 'printf("%08x\n", unpack("I", pack("f", 3.93e-4   )))' # 39ce0b91
  *   perl -e 'printf("%f\n"  , unpack("f", pack("I", 0x39ce0b91)))' # 0.000393
  */
 
-#define BQ27XXX_REG(f,o,v) dev_info(di->dev, "offset %d, " f "\n", o, v)
+#define BQ27XXX_DM_INFO(f,o,v) dev_info(di->dev, "offset %d, " f "\n", o, v)
 
-static void bq27xxx_battery_print_dm(struct bq27xxx_device_info *di) {
-	enum { h1, h2, i2, u1, f4 };
+static void bq27xxx_battery_print_dm_blocks(struct bq27xxx_device_info *di) {
+	enum { H1, H2, H4, I1, I2, U1, F4 };
 
 	struct dm_reg { int offset, type; }
 		/* each array row describes one data block */
 		c425_s82[][10] = {
-			{ { 2,h1},{ 3,i2},{ 5,h2},{12,i2},{14,i2},{18,i2},{22,i2},{29,u1},{30,i2},{99,0} },
-			{ {32,i2},{34,i2},{36,i2},{38,u1},{39,u1},{40,f4},{99,0} },
+			{ { 2,H1},{ 3,I2},{ 5,H2},{12,I2},{14,I2},{18,I2},{22,I2},{29,U1},{30,I2},{99,0} },
+			{ {32,I2},{34,I2},{36,I2},{38,U1},{39,U1},{40,F4},{99,0} },
+		},
+		c425_s104[][10] = {
+			{ { 0,I2},{ 2,I1},{ 3,I1},{ 4,I1},{99,0} },
+		},
+		c425_s105[][10] = {
+			{ { 0,F4},{ 4,I2},{99,0} },
 		};
 		/* add more subclass maps here */
 
-	struct dm_class { int id, len; struct dm_reg (*reg)[10]; }
+	struct dm_class { int id, blocks; struct dm_reg (*reg)[10]; }
 		c425[] = {
-			{ .id = 82, .len = 2, .reg = c425_s82 },
+			{ .id =  82, .blocks = 2, .reg = c425_s82  },
+			{ .id = 104, .blocks = 1, .reg = c425_s104 },
+			{ .id = 105, .blocks = 1, .reg = c425_s105 },
+			{ .reg = NULL }
 		};
 		/* add more chip maps here */
 
@@ -692,21 +701,31 @@ static void bq27xxx_battery_print_dm(struct bq27xxx_device_info *di) {
 
 	struct bq27xxx_dm_buf buf = { };
 	int c, b, r;
-	for (c=0; c < 1; ++c) {
+
+	for (c=0; chip[c].reg != NULL; ++c) {
 		buf.class = chip[c].id;
 		dev_info(di->dev, "subclass %d registers...\n", chip[c].id);
-		for (b=0; b < chip[c].len; ++b) {
+
+		for (b=0; b < chip[c].blocks; ++b) {
 			buf.block = b;
-			bq27xxx_battery_read_dm_block(di, &buf);
+			if (bq27xxx_battery_read_dm_block(di, &buf) < 0)
+				continue;
+
 			for (r=0; chip[c].reg[b][r].offset != 99; ++r) {
 				int o = chip[c].reg[b][r].offset;
 				u8* p = &buf.a[o % sizeof buf.a];
+
 				switch (chip[c].reg[b][r].type) {
-				case h1: BQ27XXX_REG("%02x", o,      *p); break;
-				case h2: BQ27XXX_REG("%04x", o,      be16_to_cpup((u16*)p)); break;
-				case i2: BQ27XXX_REG("%d",   o, (s16)be16_to_cpup((u16*)p)); break;
-				case u1: BQ27XXX_REG("%u",   o,      *p); break;
-				case f4: BQ27XXX_REG("%08x", o,      be32_to_cpup((u32*)p)); break;
+				case H1: BQ27XXX_DM_INFO("%02x", o,   *p); break;
+				case I1: BQ27XXX_DM_INFO("%d", o, (s8)*p); break;
+				case U1: BQ27XXX_DM_INFO("%u", o,     *p); break;
+				case H2: BQ27XXX_DM_INFO("%04x", o,
+						   be16_to_cpup((u16*)p)); break;
+				case I2: BQ27XXX_DM_INFO("%d", o,
+					      (s16)be16_to_cpup((u16*)p)); break;
+				case H4:
+				case F4: BQ27XXX_DM_INFO("%08x", o,
+						   be32_to_cpup((u32*)p)); break;
 				}
 			}
 		}
@@ -732,8 +751,6 @@ static void bq27xxx_battery_print_config(struct bq27xxx_device_info *di)
 		else
 			dev_warn(di->dev, "unsupported config register %s\n", str);
 	}
-	/* bq27xxx_battery_print_dm(di); uncomment for debugging */
-	(void)bq27xxx_battery_print_dm; /* prevent compiler warning */
 }
 
 static void bq27xxx_battery_update_dm_block(struct bq27xxx_device_info *di,
@@ -943,6 +960,8 @@ void bq27xxx_battery_settings(struct bq27xxx_device_info *di)
 
 out:
 	bq27xxx_battery_print_config(di);
+	/* bq27xxx_battery_print_dm_blocks(di); uncomment for debugging */
+	(void)bq27xxx_battery_print_dm_blocks; /* prevent compiler warning */
 	bq27xxx_battery_set_seal_state(di, true);
 }
 
