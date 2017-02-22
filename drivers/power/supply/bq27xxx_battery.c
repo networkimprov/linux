@@ -59,6 +59,7 @@
 #define BQ27XXX_FLAG_DSC	BIT(0)
 #define BQ27XXX_FLAG_SOCF	BIT(1) /* State-of-Charge threshold final */
 #define BQ27XXX_FLAG_SOC1	BIT(2) /* State-of-Charge threshold 1 */
+#define BQ27XXX_FLAG_CFGUP	BIT(5)
 #define BQ27XXX_FLAG_FC		BIT(9)
 #define BQ27XXX_FLAG_OTD	BIT(14)
 #define BQ27XXX_FLAG_OTC	BIT(15)
@@ -776,6 +777,35 @@ static void bq27xxx_battery_update_dm_block(struct bq27xxx_device_info *di,
 	return;
 }
 
+static int bq27xxx_battery_set_cfgupdate(struct bq27xxx_device_info *di,
+					 bool state)
+{
+	int ret, try=100;
+
+	ret = di->bus.write(di, BQ27XXX_CONTROL,
+			    state ? BQ27XXX_SET_CFGUPDATE : BQ27XXX_SOFT_RESET,
+			    false);
+	if (ret < 0)
+		goto out;
+
+	do {
+		BQ27XXX_MSLEEP(20);
+		ret = di->bus.read(di, di->regs[BQ27XXX_REG_FLAGS], false);
+		if (ret < 0)
+			goto out;
+	} while (!(ret & BQ27XXX_FLAG_CFGUP) == state && --try);
+dev_info(di->dev, "cfgupdate %d, retries %d\n", state, 100-try);
+	if (try)
+		return 0;
+
+	dev_err(di->dev, "timed out waiting for cfgupdate flag %d\n", state);
+	return -EINVAL;
+
+out:
+	dev_err(di->dev, "bus error in %s: %d\n", __func__, ret);
+	return ret;
+}
+
 static int bq27xxx_battery_write_dm_block(struct bq27xxx_device_info *di,
 					  struct bq27xxx_dm_buf *buf)
 {
@@ -783,33 +813,33 @@ static int bq27xxx_battery_write_dm_block(struct bq27xxx_device_info *di,
 	int ret;
 
 	if (cfgup) {
-		ret = di->bus.write(di, BQ27XXX_CONTROL, BQ27XXX_SET_CFGUPDATE, false);
+		ret = bq27xxx_battery_set_cfgupdate(di, true);
 		if (ret < 0)
-			goto out1;
+			return ret;
 	}
 
 	ret = di->bus.write(di, BQ27XXX_BLOCK_DATA_CONTROL, 0, true);
 	if (ret < 0)
-		goto out2;
+		goto out;
 
 	ret = di->bus.write(di, BQ27XXX_DATA_CLASS, buf->class, true);
 	if (ret < 0)
-		goto out2;
+		goto out;
 
 	ret = di->bus.write(di, BQ27XXX_DATA_BLOCK, buf->block, true);
 	if (ret < 0)
-		goto out2;
+		goto out;
 
 	BQ27XXX_MSLEEP(1);
 
 	ret = di->bus.write_bulk(di, BQ27XXX_BLOCK_DATA, buf->a, sizeof buf->a);
 	if (ret < 0)
-		goto out2;
+		goto out;
 
 	ret = di->bus.write(di, BQ27XXX_BLOCK_DATA_CHECKSUM,
 			    bq27xxx_battery_checksum(buf), true);
 	if (ret < 0)
-		goto out2;
+		goto out;
 
 	/* THE FOLLOWING CODE IS TOXIC. DO NOT USE!
 	 * If the 350ms delay is insufficient, NVM corruption results
@@ -827,18 +857,18 @@ static int bq27xxx_battery_write_dm_block(struct bq27xxx_device_info *di,
 
 	if (cfgup) {
 		BQ27XXX_MSLEEP(1);
-		ret = di->bus.write(di, BQ27XXX_CONTROL, BQ27XXX_SOFT_RESET, false);
+		ret = bq27xxx_battery_set_cfgupdate(di, false);
 		if (ret < 0)
-			goto out1;
+			return ret;
 	}
 
 	buf->updt = false;
 	return 0;
 
-out2:
+out:
 	if (cfgup)
-		di->bus.write(di, BQ27XXX_CONTROL, BQ27XXX_SOFT_RESET, false);
-out1:
+		bq27xxx_battery_set_cfgupdate(di, false);
+
 	dev_err(di->dev, "bus error in %s: %d\n", __func__, ret);
 	return ret;
 }
