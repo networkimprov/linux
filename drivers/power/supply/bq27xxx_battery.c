@@ -482,31 +482,24 @@ struct bq27xxx_dm_buf {
 	bool full, updt;
 };
 
-#define BQ27XXX_DM_BUF_PTR(b, r) \
-	( (u16*) &(b).a[ (r)->offset % sizeof (b).a ] )
-
 #define BQ27XXX_DM_BUF(di, i) { \
 	.class = bq27xxx_dm_regs[(di)->chip][i].subclass_id, \
 	.block = bq27xxx_dm_regs[(di)->chip][i].offset / sizeof ((struct bq27xxx_dm_buf*)0)->a, \
 }
 
-static inline bool bq27xxx_dm_buf_set(struct bq27xxx_dm_buf *buf,
+static inline u16* bq27xxx_dm_buf_ptr(struct bq27xxx_dm_buf *buf,
 				      struct bq27xxx_dm_reg *reg) {
 	if (buf->class == reg->subclass_id
-	 && buf->block == reg->offset / sizeof buf->a
-	 && buf->full)
-		return false;
-	buf->class = reg->subclass_id;
-	buf->block = reg->offset / sizeof buf->a;
-	buf->full = buf->updt = false;
-	return true;
+	 && buf->block == reg->offset / sizeof buf->a)
+		return (u16*) (buf->a + reg->offset % sizeof buf->a);
+
+	return NULL;
 }
 
 enum bq27xxx_dm_reg_id {
 	BQ27XXX_DM_DESIGN_CAPACITY = 0,
 	BQ27XXX_DM_DESIGN_ENERGY,
 	BQ27XXX_DM_TERMINATE_VOLTAGE,
-	BQ27XXX_DM_END,
 };
 
 static const char* bq27xxx_dm_reg_name[] = {
@@ -733,48 +726,34 @@ static void bq27xxx_battery_print_dm_blocks(struct bq27xxx_device_info *di) {
 	}
 }
 
-static void bq27xxx_battery_print_config(struct bq27xxx_device_info *di)
-{
-	struct bq27xxx_dm_reg *reg = bq27xxx_dm_regs[di->chip];
-	struct bq27xxx_dm_buf buf = { .class = 0xFF };
-	int i;
-
-	for (i = 0; i < BQ27XXX_DM_END; i++, reg++) {
-		const char* str = bq27xxx_dm_reg_name[i];
-
-		if (bq27xxx_dm_buf_set(&buf, reg))
-			if (bq27xxx_battery_read_dm_block(di, &buf) < 0)
-				continue;
-
-		if (reg->bytes == 2)
-			dev_info(di->dev, "config register %s is %d\n", str,
-				 be16_to_cpup(BQ27XXX_DM_BUF_PTR(buf, reg)));
-		else
-			dev_warn(di->dev, "unsupported config register %s\n", str);
-	}
-}
-
 static void bq27xxx_battery_update_dm_block(struct bq27xxx_device_info *di,
 					    struct bq27xxx_dm_buf *buf,
 					    enum bq27xxx_dm_reg_id reg_id,
 					    unsigned int val)
 {
 	struct bq27xxx_dm_reg *reg = &bq27xxx_dm_regs[di->chip][reg_id];
-	u16 *prev;
+	const char* str = bq27xxx_dm_reg_name[reg_id];
+	u16 *prev = bq27xxx_dm_buf_ptr(buf, reg);
 
-	if (reg->bytes != 2)
+	if (prev == NULL) {
+		dev_warn(di->dev, "buffer does not match %s dm spec\n", str);
 		return;
+	}
 
-	prev = BQ27XXX_DM_BUF_PTR(*buf, reg);
-	if (be16_to_cpup(prev) == val)
+	if (reg->bytes != 2) {
+		dev_warn(di->dev, "%s dm spec has unsupported byte size\n", str);
 		return;
+	}
+
+	if (be16_to_cpup(prev) == val) {
+		dev_info(di->dev, "%s has %u\n", str, val);
+		return;
+	}
+
+	dev_info(di->dev, "update %s to %u\n", str, val);
+
 	*prev = cpu_to_be16(val);
-
-	dev_info(di->dev, "update chip %d, class %u, block %u, offset %u, value %u\n",
-		 di->chip, buf->class, buf->block, reg->offset, val);
-
 	buf->updt = true;
-	return;
 }
 
 static int bq27xxx_battery_set_cfgupdate(struct bq27xxx_device_info *di,
@@ -989,7 +968,6 @@ void bq27xxx_battery_settings(struct bq27xxx_device_info *di)
 	bq27xxx_battery_set_config(di, &info);
 
 out:
-	bq27xxx_battery_print_config(di);
 	/* bq27xxx_battery_print_dm_blocks(di); uncomment for debugging */
 	(void)bq27xxx_battery_print_dm_blocks; /* prevent compiler warning */
 	bq27xxx_battery_set_seal_state(di, true);
