@@ -73,6 +73,11 @@
 #define BQ27000_FLAG_FC		BIT(5)
 #define BQ27000_FLAG_CHGS	BIT(7) /* Charge state flag */
 
+/* control register params */
+#define BQ27XXX_SEALED			0x20
+#define BQ27XXX_SET_CFGUPDATE		0x13
+#define BQ27XXX_SOFT_RESET		0x42
+
 #define BQ27XXX_RS			(20) /* Resistor sense mOhm */
 #define BQ27XXX_POWER_CONSTANT		(29200) /* 29.2 µV^2 * 1000 */
 #define BQ27XXX_CURRENT_CONSTANT	(3570) /* 3.57 µV * 1000 */
@@ -103,6 +108,11 @@ enum bq27xxx_reg_index {
 	BQ27XXX_REG_SOC,	/* State-of-Charge */
 	BQ27XXX_REG_DCAP,	/* Design Capacity */
 	BQ27XXX_REG_AP,		/* Average Power */
+	BQ27XXX_DM_CTRL,	/* BlockDataControl() */
+	BQ27XXX_DM_CLASS,	/* DataClass() */
+	BQ27XXX_DM_BLOCK,	/* DataBlock() */
+	BQ27XXX_DM_DATA,	/* BlockData() */
+	BQ27XXX_DM_CKSUM,	/* BlockDataChecksum() */
 	BQ27XXX_REG_MAX,	/* sentinel */
 };
 
@@ -126,6 +136,11 @@ static u8 bq27xxx_regs[][BQ27XXX_REG_MAX] = {
 		[BQ27XXX_REG_SOC] = 0x0b,
 		[BQ27XXX_REG_DCAP] = 0x76,
 		[BQ27XXX_REG_AP] = 0x24,
+		[BQ27XXX_DM_CTRL] = INVALID_REG_ADDR,
+		[BQ27XXX_DM_CLASS] = INVALID_REG_ADDR,
+		[BQ27XXX_DM_BLOCK] = INVALID_REG_ADDR,
+		[BQ27XXX_DM_DATA] = INVALID_REG_ADDR,
+		[BQ27XXX_DM_CKSUM] = INVALID_REG_ADDR,
 	},
 	[BQ27010] = {
 		[BQ27XXX_REG_CTRL] = 0x00,
@@ -145,6 +160,11 @@ static u8 bq27xxx_regs[][BQ27XXX_REG_MAX] = {
 		[BQ27XXX_REG_SOC] = 0x0b,
 		[BQ27XXX_REG_DCAP] = 0x76,
 		[BQ27XXX_REG_AP] = INVALID_REG_ADDR,
+		[BQ27XXX_DM_CTRL] = INVALID_REG_ADDR,
+		[BQ27XXX_DM_CLASS] = INVALID_REG_ADDR,
+		[BQ27XXX_DM_BLOCK] = INVALID_REG_ADDR,
+		[BQ27XXX_DM_DATA] = INVALID_REG_ADDR,
+		[BQ27XXX_DM_CKSUM] = INVALID_REG_ADDR,
 	},
 	[BQ27500] = {
 		[BQ27XXX_REG_CTRL] = 0x00,
@@ -164,6 +184,11 @@ static u8 bq27xxx_regs[][BQ27XXX_REG_MAX] = {
 		[BQ27XXX_REG_SOC] = 0x2c,
 		[BQ27XXX_REG_DCAP] = 0x3c,
 		[BQ27XXX_REG_AP] = INVALID_REG_ADDR,
+		[BQ27XXX_DM_CTRL] = 0x61,
+		[BQ27XXX_DM_CLASS] = 0x3e,
+		[BQ27XXX_DM_BLOCK] = 0x3f,
+		[BQ27XXX_DM_DATA] = 0x40,
+		[BQ27XXX_DM_CKSUM] = 0x60,
 	},
 	[BQ27510] = {
 		[BQ27XXX_REG_CTRL] = 0x00,
@@ -183,6 +208,11 @@ static u8 bq27xxx_regs[][BQ27XXX_REG_MAX] = {
 		[BQ27XXX_REG_SOC] = 0x20,
 		[BQ27XXX_REG_DCAP] = 0x2e,
 		[BQ27XXX_REG_AP] = INVALID_REG_ADDR,
+		[BQ27XXX_DM_CTRL] = 0x61,
+		[BQ27XXX_DM_CLASS] = 0x3e,
+		[BQ27XXX_DM_BLOCK] = 0x3f,
+		[BQ27XXX_DM_DATA] = 0x40,
+		[BQ27XXX_DM_CKSUM] = 0x60,
 	},
 	[BQ27530] = {
 		[BQ27XXX_REG_CTRL] = 0x00,
@@ -202,6 +232,11 @@ static u8 bq27xxx_regs[][BQ27XXX_REG_MAX] = {
 		[BQ27XXX_REG_SOC] = 0x2c,
 		[BQ27XXX_REG_DCAP] = INVALID_REG_ADDR,
 		[BQ27XXX_REG_AP] = 0x24,
+		[BQ27XXX_DM_CTRL] = 0x61,
+		[BQ27XXX_DM_CLASS] = 0x3e,
+		[BQ27XXX_DM_BLOCK] = 0x3f,
+		[BQ27XXX_DM_DATA] = 0x40,
+		[BQ27XXX_DM_CKSUM] = 0x60,
 	},
 	[BQ27541] = {
 		[BQ27XXX_REG_CTRL] = 0x00,
@@ -221,6 +256,11 @@ static u8 bq27xxx_regs[][BQ27XXX_REG_MAX] = {
 		[BQ27XXX_REG_SOC] = 0x2c,
 		[BQ27XXX_REG_DCAP] = 0x3c,
 		[BQ27XXX_REG_AP] = 0x24,
+		[BQ27XXX_DM_CTRL] = 0x61,
+		[BQ27XXX_DM_CLASS] = 0x3e,
+		[BQ27XXX_DM_BLOCK] = 0x3f,
+		[BQ27XXX_DM_DATA] = 0x40,
+		[BQ27XXX_DM_CKSUM] = 0x60,
 	},
 	[BQ27545] = {
 		[BQ27XXX_REG_CTRL] = 0x00,
@@ -240,6 +280,11 @@ static u8 bq27xxx_regs[][BQ27XXX_REG_MAX] = {
 		[BQ27XXX_REG_SOC] = 0x2c,
 		[BQ27XXX_REG_DCAP] = INVALID_REG_ADDR,
 		[BQ27XXX_REG_AP] = 0x24,
+		[BQ27XXX_DM_CTRL] = 0x61,
+		[BQ27XXX_DM_CLASS] = 0x3e,
+		[BQ27XXX_DM_BLOCK] = 0x3f,
+		[BQ27XXX_DM_DATA] = 0x40,
+		[BQ27XXX_DM_CKSUM] = 0x60,
 	},
 	[BQ27421] = {
 		[BQ27XXX_REG_CTRL] = 0x00,
@@ -259,6 +304,11 @@ static u8 bq27xxx_regs[][BQ27XXX_REG_MAX] = {
 		[BQ27XXX_REG_SOC] = 0x1c,
 		[BQ27XXX_REG_DCAP] = 0x3c,
 		[BQ27XXX_REG_AP] = 0x18,
+		[BQ27XXX_DM_CTRL] = 0x61,
+		[BQ27XXX_DM_CLASS] = 0x3e,
+		[BQ27XXX_DM_BLOCK] = 0x3f,
+		[BQ27XXX_DM_DATA] = 0x40,
+		[BQ27XXX_DM_CKSUM] = 0x60,
 	},
 	[BQ27425] = {
 		[BQ27XXX_REG_CTRL] = 0x00,
@@ -278,6 +328,11 @@ static u8 bq27xxx_regs[][BQ27XXX_REG_MAX] = {
 		[BQ27XXX_REG_SOC] = 0x1c,
 		[BQ27XXX_REG_DCAP] = 0x3c,
 		[BQ27XXX_REG_AP] = 0x18,
+		[BQ27XXX_DM_CTRL] = 0x61,
+		[BQ27XXX_DM_CLASS] = 0x3e,
+		[BQ27XXX_DM_BLOCK] = 0x3f,
+		[BQ27XXX_DM_DATA] = 0x40,
+		[BQ27XXX_DM_CKSUM] = 0x60,
 	},
 };
 
@@ -453,19 +508,6 @@ static struct {
 static DEFINE_MUTEX(bq27xxx_list_lock);
 static LIST_HEAD(bq27xxx_battery_devices);
 
-/* writable registers */
-#define BQ27XXX_CONTROL			0x00
-#define BQ27XXX_DATA_CLASS		0x3E
-#define BQ27XXX_DATA_BLOCK		0x3F
-#define BQ27XXX_BLOCK_DATA		0x40
-#define BQ27XXX_BLOCK_DATA_CHECKSUM	0x60
-#define BQ27XXX_BLOCK_DATA_CONTROL	0x61
-
-/* control register params */
-#define BQ27XXX_SEALED			0x20
-#define BQ27XXX_SET_CFGUPDATE		0x13
-#define BQ27XXX_SOFT_RESET		0x42
-
 #define BQ27XXX_MSLEEP(i) usleep_range((i)*1000, (i)*1000+500)
 
 struct bq27xxx_dm_reg {
@@ -590,15 +632,15 @@ static int bq27xxx_battery_set_seal_state(struct bq27xxx_device_info *di,
 	int ret;
 
 	if (state) {
-		ret = di->bus.write(di, BQ27XXX_CONTROL, BQ27XXX_SEALED, false);
+		ret = di->bus.write(di, di->regs[BQ27XXX_REG_CTRL], BQ27XXX_SEALED, false);
 		if (ret < 0)
 			goto out;
 	} else {
-		ret = di->bus.write(di, BQ27XXX_CONTROL, (u16)(key >> 16), false);
+		ret = di->bus.write(di, di->regs[BQ27XXX_REG_CTRL], (u16)(key >> 16), false);
 		if (ret < 0)
 			goto out;
 
-		ret = di->bus.write(di, BQ27XXX_CONTROL, (u16)key, false);
+		ret = di->bus.write(di, di->regs[BQ27XXX_REG_CTRL], (u16)key, false);
 		if (ret < 0)
 			goto out;
 	}
@@ -626,21 +668,21 @@ static int bq27xxx_battery_read_dm_block(struct bq27xxx_device_info *di,
 {
 	int ret;
 
-	ret = di->bus.write(di, BQ27XXX_DATA_CLASS, buf->class, true);
+	ret = di->bus.write(di, di->regs[BQ27XXX_DM_CLASS], buf->class, true);
 	if (ret < 0)
 		goto out;
 
-	ret = di->bus.write(di, BQ27XXX_DATA_BLOCK, buf->block, true);
+	ret = di->bus.write(di, di->regs[BQ27XXX_DM_BLOCK], buf->block, true);
 	if (ret < 0)
 		goto out;
 
 	BQ27XXX_MSLEEP(1);
 
-	ret = di->bus.read_bulk(di, BQ27XXX_BLOCK_DATA, buf->a, sizeof buf->a);
+	ret = di->bus.read_bulk(di, di->regs[BQ27XXX_DM_DATA], buf->a, sizeof buf->a);
 	if (ret < 0)
 		goto out;
 
-	ret = di->bus.read(di, BQ27XXX_BLOCK_DATA_CHECKSUM, true);
+	ret = di->bus.read(di, di->regs[BQ27XXX_DM_CKSUM], true);
 	if (ret < 0)
 		goto out;
 
@@ -761,7 +803,7 @@ static int bq27xxx_battery_set_cfgupdate(struct bq27xxx_device_info *di,
 {
 	int ret, try=100;
 
-	ret = di->bus.write(di, BQ27XXX_CONTROL,
+	ret = di->bus.write(di, di->regs[BQ27XXX_REG_CTRL],
 			    state ? BQ27XXX_SET_CFGUPDATE : BQ27XXX_SOFT_RESET,
 			    false);
 	if (ret < 0)
@@ -797,25 +839,25 @@ static int bq27xxx_battery_write_dm_block(struct bq27xxx_device_info *di,
 			return ret;
 	}
 
-	ret = di->bus.write(di, BQ27XXX_BLOCK_DATA_CONTROL, 0, true);
+	ret = di->bus.write(di, di->regs[BQ27XXX_DM_CTRL], 0, true);
 	if (ret < 0)
 		goto out;
 
-	ret = di->bus.write(di, BQ27XXX_DATA_CLASS, buf->class, true);
+	ret = di->bus.write(di, di->regs[BQ27XXX_DM_CLASS], buf->class, true);
 	if (ret < 0)
 		goto out;
 
-	ret = di->bus.write(di, BQ27XXX_DATA_BLOCK, buf->block, true);
+	ret = di->bus.write(di, di->regs[BQ27XXX_DM_BLOCK], buf->block, true);
 	if (ret < 0)
 		goto out;
 
 	BQ27XXX_MSLEEP(1);
 
-	ret = di->bus.write_bulk(di, BQ27XXX_BLOCK_DATA, buf->a, sizeof buf->a);
+	ret = di->bus.write_bulk(di, di->regs[BQ27XXX_DM_DATA], buf->a, sizeof buf->a);
 	if (ret < 0)
 		goto out;
 
-	ret = di->bus.write(di, BQ27XXX_BLOCK_DATA_CHECKSUM,
+	ret = di->bus.write(di, di->regs[BQ27XXX_DM_CKSUM],
 			    bq27xxx_battery_checksum(buf), true);
 	if (ret < 0)
 		goto out;
@@ -827,9 +869,9 @@ static int bq27xxx_battery_write_dm_block(struct bq27xxx_device_info *di,
 	 *   http://git.ti.com/bms-linux/bqtool/blobs/master/gauge.c#line328
 	 *
 	 * BQ27XXX_MSLEEP(350);
-	 * ret = di->bus.write(di, BQ27XXX_DATA_BLOCK, buf->block, true);
+	 * ret = di->bus.write(di, di->regs[BQ27XXX_DM_BLOCK], buf->block, true);
 	 * BQ27XXX_MSLEEP(1);
-	 * ret = di->bus.read(di, BQ27XXX_BLOCK_DATA_CHECKSUM, true);
+	 * ret = di->bus.read(di, di->regs[BQ27XXX_DM_CKSUM], true);
 	 * if ((u8)ret != bq27xxx_battery_checksum(buf))
 	 * 	ret = -EINVAL;
 	 */
