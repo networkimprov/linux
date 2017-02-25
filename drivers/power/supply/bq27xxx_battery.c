@@ -508,6 +508,8 @@ static struct {
 static DEFINE_MUTEX(bq27xxx_list_lock);
 static LIST_HEAD(bq27xxx_battery_devices);
 
+#define BQ27XXX_DM_SZ			32
+
 #define BQ27XXX_MSLEEP(i) usleep_range((i)*1000, (i)*1000+500)
 
 struct bq27xxx_dm_reg {
@@ -520,20 +522,20 @@ struct bq27xxx_dm_reg {
 struct bq27xxx_dm_buf {
 	u8 class;
 	u8 block;
-	u8 a[32];
+	u8 a[BQ27XXX_DM_SZ];
 	bool full, updt;
 };
 
 #define BQ27XXX_DM_BUF(di, i) { \
 	.class = bq27xxx_dm_regs[(di)->chip][i].subclass_id, \
-	.block = bq27xxx_dm_regs[(di)->chip][i].offset / sizeof ((struct bq27xxx_dm_buf*)0)->a, \
+	.block = bq27xxx_dm_regs[(di)->chip][i].offset / BQ27XXX_DM_SZ, \
 }
 
 static inline u16* bq27xxx_dm_buf_ptr(struct bq27xxx_dm_buf *buf,
 				      struct bq27xxx_dm_reg *reg) {
 	if (buf->class == reg->subclass_id
-	 && buf->block == reg->offset / sizeof buf->a)
-		return (u16*) (buf->a + reg->offset % sizeof buf->a);
+	 && buf->block == reg->offset / BQ27XXX_DM_SZ)
+		return (u16*) (buf->a + reg->offset % BQ27XXX_DM_SZ);
 
 	return NULL;
 }
@@ -656,7 +658,7 @@ static u8 bq27xxx_battery_checksum(struct bq27xxx_dm_buf *buf)
 	u16 sum = 0;
 	int i;
 
-	for (i = 0; i < sizeof buf->a; i++)
+	for (i = 0; i < BQ27XXX_DM_SZ; i++)
 		sum += buf->a[i];
 	sum &= 0xff;
 
@@ -678,7 +680,7 @@ static int bq27xxx_battery_read_dm_block(struct bq27xxx_device_info *di,
 
 	BQ27XXX_MSLEEP(1);
 
-	ret = di->bus.read_bulk(di, di->regs[BQ27XXX_DM_DATA], buf->a, sizeof buf->a);
+	ret = di->bus.read_bulk(di, di->regs[BQ27XXX_DM_DATA], buf->a, BQ27XXX_DM_SZ);
 	if (ret < 0)
 		goto out;
 
@@ -749,7 +751,7 @@ static void bq27xxx_battery_print_dm_blocks(struct bq27xxx_device_info *di) {
 
 			for (r=0; chip[c].reg[b][r].offset != 99; ++r) {
 				int o = chip[c].reg[b][r].offset;
-				u8* p = &buf.a[o % sizeof buf.a];
+				u8* p = &buf.a[o % BQ27XXX_DM_SZ];
 
 				switch (chip[c].reg[b][r].type) {
 				case H1: BQ27XXX_DM_INFO("%02x", o,   *p); break;
@@ -853,7 +855,7 @@ static int bq27xxx_battery_write_dm_block(struct bq27xxx_device_info *di,
 
 	BQ27XXX_MSLEEP(1);
 
-	ret = di->bus.write_bulk(di, di->regs[BQ27XXX_DM_DATA], buf->a, sizeof buf->a);
+	ret = di->bus.write_bulk(di, di->regs[BQ27XXX_DM_DATA], buf->a, BQ27XXX_DM_SZ);
 	if (ret < 0)
 		goto out;
 
