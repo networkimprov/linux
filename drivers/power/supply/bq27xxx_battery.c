@@ -647,7 +647,7 @@ static int bq27xxx_battery_set_seal_state(struct bq27xxx_device_info *di,
 	return 0;
 
 out:
-	dev_err(di->dev, "bus error in %s: %d\n", __func__, ret);
+	dev_err(di->dev, "bus error on %s: %d\n", state ? "seal" : "unseal", ret);
 	return ret;
 }
 
@@ -696,7 +696,7 @@ static int bq27xxx_battery_read_dm_block(struct bq27xxx_device_info *di,
 	return 0;
 
 out:
-	dev_err(di->dev, "bus error in %s: %d\n", __func__, ret);
+	dev_err(di->dev, "bus error reading chip memory: %d\n", ret);
 	return ret;
 }
 
@@ -823,7 +823,7 @@ dev_info(di->dev, "cfgupdate %d, retries %d\n", state, 100-try);
 	return -EINVAL;
 
 out:
-	dev_err(di->dev, "bus error in %s: %d\n", __func__, ret);
+	dev_err(di->dev, "bus error on %s: %d\n", state ? "set_cfgupdate" : "soft_reset", ret);
 	return ret;
 }
 
@@ -890,7 +890,7 @@ out:
 	if (cfgup)
 		bq27xxx_battery_set_cfgupdate(di, false);
 
-	dev_err(di->dev, "bus error in %s: %d\n", __func__, ret);
+	dev_err(di->dev, "bus error writing chip memory: %d\n", ret);
 	return ret;
 }
 
