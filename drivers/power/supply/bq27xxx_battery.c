@@ -564,22 +564,22 @@ static struct bq27xxx_dm_reg bq27421_dm_regs[] = { /* not tested */
 	[BQ27XXX_DM_TERMINATE_VOLTAGE] = { 82, 16, 2, 2500,  3700 },
 };
 
-static struct bq27xxx_dm_reg bq27621_dm_regs[] = { /* not tested */
-	[BQ27XXX_DM_DESIGN_CAPACITY]   = { 82, 3, 2,    0,  8000 },
-	[BQ27XXX_DM_DESIGN_ENERGY]     = { 82, 5, 2,    0, 32767 },
-	[BQ27XXX_DM_TERMINATE_VOLTAGE] = { 82, 9, 2, 2500,  3700 },
-};
+//static struct bq27xxx_dm_reg bq27621_dm_regs[] = { /* not tested */
+//	[BQ27XXX_DM_DESIGN_CAPACITY]   = { 82, 3, 2,    0,  8000 },
+//	[BQ27XXX_DM_DESIGN_ENERGY]     = { 82, 5, 2,    0, 32767 },
+//	[BQ27XXX_DM_TERMINATE_VOLTAGE] = { 82, 9, 2, 2500,  3700 },
+//};
 
 static struct bq27xxx_dm_reg *bq27xxx_dm_regs[] = {
 	[BQ27421] = bq27421_dm_regs, /* and BQ27441 */
 	[BQ27425] = bq27425_dm_regs,
-/*	[BQ27621] = */ bq27621_dm_regs,
+//	[BQ27621] = bq27621_dm_regs,
 };
 
 static u32 bq27xxx_unseal_keys[] = {
 	[BQ27421] = 0x80008000, /* and BQ27441 */
 	[BQ27425] = 0x04143672,
-/*	[BQ27621] = */ 0x80008000,
+//	[BQ27621] = 0x80008000,
 };
 
 
@@ -864,18 +864,17 @@ static int bq27xxx_battery_write_dm_block(struct bq27xxx_device_info *di,
 	if (ret < 0)
 		goto out;
 
-	/* THE FOLLOWING CODE IS TOXIC. DO NOT USE!
-	 * If the 350ms delay is insufficient, NVM corruption results
-	 * on the '425 chip, which could damage the chip.
+	/* THE FOLLOWING SEQUENCE IS TOXIC. DO NOT USE!
+	 * If the 'time' delay is insufficient, NVM corruption results on
+	 * the '425 chip (and perhaps others), which could damage the chip.
 	 * It was suggested in this TI tool:
 	 *   http://git.ti.com/bms-linux/bqtool/blobs/master/gauge.c#line328
 	 *
-	 * BQ27XXX_MSLEEP(350);
-	 * ret = di->bus.write(di, di->regs[BQ27XXX_DM_BLOCK], buf->block, true);
-	 * BQ27XXX_MSLEEP(1);
-	 * ret = di->bus.read(di, di->regs[BQ27XXX_DM_CKSUM], true);
-	 * if ((u8)ret != bq27xxx_battery_checksum(buf))
-	 * 	ret = -EINVAL;
+	 * 1. sleep 'time' after above write(BQ27XXX_DM_CKSUM, ...)
+	 * 2. write(BQ27XXX_DM_BLOCK, buf->block)
+	 * 3. sum = read(BQ27XXX_DM_CKSUM)
+	 * 4. if (sum != bq27xxx_battery_checksum(buf))
+	 *      error
 	 */
 
 	if (cfgup) {
