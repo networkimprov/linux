@@ -815,13 +815,19 @@ static int bq27xxx_battery_set_cfgupdate(struct bq27xxx_device_info *di,
 	if (ret < 0)
 		goto out;
 
+	if (di->chip == BQ27425) /* chip fails to set/clear flag */
+		return 0;
+
 	do {
-		BQ27XXX_MSLEEP(20);
+		BQ27XXX_MSLEEP(5);
 		ret = di->bus.read(di, di->regs[BQ27XXX_REG_FLAGS], false);
 		if (ret < 0)
 			goto out;
 	} while (!(ret & BQ27XXX_FLAG_CFGUP) == state && --try);
-dev_info(di->dev, "cfgupdate %d, retries %d\n", state, 100-try);
+
+	if (100-try) /* remove after other cfgupdate parts are tested */
+		dev_info(di->dev, "cfgupdate %d, retries %d\n", state, 100-try);
+
 	if (try)
 		return 0;
 
