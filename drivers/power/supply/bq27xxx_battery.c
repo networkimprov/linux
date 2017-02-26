@@ -630,7 +630,6 @@ static inline int bq27xxx_read(struct bq27xxx_device_info *di, int reg_index,
 static int bq27xxx_battery_set_seal_state(struct bq27xxx_device_info *di,
 					  bool state)
 {
-	u32 key = bq27xxx_unseal_keys[di->chip];
 	int ret;
 
 	if (state) {
@@ -638,6 +637,8 @@ static int bq27xxx_battery_set_seal_state(struct bq27xxx_device_info *di,
 		if (ret < 0)
 			goto out;
 	} else {
+		u32 key = bq27xxx_unseal_keys[di->chip];
+
 		ret = di->bus.write(di, di->regs[BQ27XXX_REG_CTRL], (u16)(key >> 16), false);
 		if (ret < 0)
 			goto out;
