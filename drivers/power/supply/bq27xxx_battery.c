@@ -906,6 +906,7 @@ static void fix_nvm(struct bq27xxx_device_info *di, struct bq27xxx_dm_buf* buf) 
 	struct bq27xxx_dm_buf b2 = { .class = 82, .block = 1 };
 	bq27xxx_battery_read_dm_block(di, &b2);
 	*((u32*)&b2.a[40 % 32]) = cpu_to_be32(0x39ce0b91);
+	b2.updt = true;
 	bq27xxx_battery_write_dm_block(di, &b2);
 	
 	buf->a[2] = 4;
