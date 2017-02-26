@@ -790,6 +790,9 @@ static void bq27xxx_battery_update_dm_block(struct bq27xxx_device_info *di,
 		return;
 	}
 
+	if (!buf->full)
+		return;
+
 	if (be16_to_cpup(prev) == val) {
 		dev_info(di->dev, "%s has %u\n", str, val);
 		return;
@@ -835,6 +838,9 @@ static int bq27xxx_battery_write_dm_block(struct bq27xxx_device_info *di,
 {
 	bool cfgup = di->chip == BQ27425 || di->chip == BQ27421; /* || BQ27441 || BQ27621 */
 	int ret;
+
+	if (!buf->updt)
+		return 0;
 
 	if (cfgup) {
 		ret = bq27xxx_battery_set_cfgupdate(di, true);
@@ -918,33 +924,28 @@ static void bq27xxx_battery_set_config(struct bq27xxx_device_info *di,
 	if (info->charge_full_design_uah != -EINVAL
 	 && info->energy_full_design_uwh != -EINVAL) {
 		bq27xxx_battery_read_dm_block(di, &bd);
-		if (bd.full) {
-			/* assume design energy & capacity are in same block */
-			bq27xxx_battery_update_dm_block(di, &bd,
+		/* assume design energy & capacity are in same block */
+		bq27xxx_battery_update_dm_block(di, &bd,
 					BQ27XXX_DM_DESIGN_CAPACITY,
 					info->charge_full_design_uah / 1000);
-			bq27xxx_battery_update_dm_block(di, &bd,
+		bq27xxx_battery_update_dm_block(di, &bd,
 					BQ27XXX_DM_DESIGN_ENERGY,
 					info->energy_full_design_uwh / 1000);
-		}
 	}
 
 	if (info->voltage_min_design_uv != -EINVAL) {
-		bool same = bd.full && bd.class == bt.class && bd.block == bt.block;
+		bool same = bd.class == bt.class && bd.block == bt.block;
 		if (!same)
 			bq27xxx_battery_read_dm_block(di, &bt);
-		if (same ? bd.full : bt.full)
-			bq27xxx_battery_update_dm_block(di, same ? &bd : &bt,
+		bq27xxx_battery_update_dm_block(di, same ? &bd : &bt,
 					BQ27XXX_DM_TERMINATE_VOLTAGE,
 					info->voltage_min_design_uv / 1000);
 	}
 
 	if (bd.updt || bt.updt) fix_nvm(di, &bd);
 
-	if (bd.updt)
-		bq27xxx_battery_write_dm_block(di, &bd);
-	if (bt.updt)
-		bq27xxx_battery_write_dm_block(di, &bt);
+	bq27xxx_battery_write_dm_block(di, &bd);
+	bq27xxx_battery_write_dm_block(di, &bt);
 }
 
 void bq27xxx_battery_settings(struct bq27xxx_device_info *di)
