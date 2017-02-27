@@ -508,7 +508,7 @@ static struct {
 static DEFINE_MUTEX(bq27xxx_list_lock);
 static LIST_HEAD(bq27xxx_battery_devices);
 
-#define BQ27XXX_DM_SZ			32
+#define BQ27XXX_DM_SZ	32
 
 #define BQ27XXX_MSLEEP(i) usleep_range((i)*1000, (i)*1000+500)
 
@@ -531,8 +531,9 @@ struct bq27xxx_dm_buf {
 	.block = bq27xxx_dm_regs[(di)->chip][i].offset / BQ27XXX_DM_SZ, \
 }
 
-static inline u16* bq27xxx_dm_buf_ptr(struct bq27xxx_dm_buf *buf,
-				      struct bq27xxx_dm_reg *reg) {
+static inline u16* bq27xxx_dm_reg_ptr(struct bq27xxx_dm_buf *buf,
+				      struct bq27xxx_dm_reg *reg)
+{
 	if (buf->class == reg->subclass_id
 	 && buf->block == reg->offset / BQ27XXX_DM_SZ)
 		return (u16*) (buf->a + reg->offset % BQ27XXX_DM_SZ);
@@ -552,34 +553,58 @@ static const char* bq27xxx_dm_reg_name[] = {
 	[BQ27XXX_DM_TERMINATE_VOLTAGE] = "terminate-voltage",
 };
 
-static struct bq27xxx_dm_reg bq27425_dm_regs[] = {
-	[BQ27XXX_DM_DESIGN_CAPACITY]   = { 82, 12, 2,    0, 32767 },
-	[BQ27XXX_DM_DESIGN_ENERGY]     = { 82, 14, 2,    0, 32767 },
-	[BQ27XXX_DM_TERMINATE_VOLTAGE] = { 82, 18, 2, 2800,  3700 },
+static struct bq27xxx_dm_reg bq27500_dm_regs[] = {
+	[BQ27XXX_DM_DESIGN_CAPACITY]   = { 48, 10, 2,    0, 65535 },
+	[BQ27XXX_DM_DESIGN_ENERGY]     = { }, /* missing on chip */
+	[BQ27XXX_DM_TERMINATE_VOLTAGE] = { 80, 48, 2, 1000, 32767 },
 };
 
-static struct bq27xxx_dm_reg bq27421_dm_regs[] = { /* not tested */
+static struct bq27xxx_dm_reg bq27545_dm_regs[] = {
+	[BQ27XXX_DM_DESIGN_CAPACITY]   = { 48, 23, 2,    0, 32767 },
+	[BQ27XXX_DM_DESIGN_ENERGY]     = { 48, 25, 2,    0, 32767 },
+	[BQ27XXX_DM_TERMINATE_VOLTAGE] = { 80, 67, 2, 2800,  3700 },
+};
+
+static struct bq27xxx_dm_reg bq27421_dm_regs[] = {
 	[BQ27XXX_DM_DESIGN_CAPACITY]   = { 82, 10, 2,    0,  8000 },
 	[BQ27XXX_DM_DESIGN_ENERGY]     = { 82, 12, 2,    0, 32767 },
 	[BQ27XXX_DM_TERMINATE_VOLTAGE] = { 82, 16, 2, 2500,  3700 },
 };
 
-//static struct bq27xxx_dm_reg bq27621_dm_regs[] = { /* not tested */
-//	[BQ27XXX_DM_DESIGN_CAPACITY]   = { 82, 3, 2,    0,  8000 },
-//	[BQ27XXX_DM_DESIGN_ENERGY]     = { 82, 5, 2,    0, 32767 },
-//	[BQ27XXX_DM_TERMINATE_VOLTAGE] = { 82, 9, 2, 2500,  3700 },
-//};
+/* requires di->chip/group distinction
+ *static struct bq27xxx_dm_reg bq27425_dm_regs[] = {
+ *	[BQ27XXX_DM_DESIGN_CAPACITY]   = { 82, 12, 2,    0, 32767 },
+ *	[BQ27XXX_DM_DESIGN_ENERGY]     = { 82, 14, 2,    0, 32767 },
+ *	[BQ27XXX_DM_TERMINATE_VOLTAGE] = { 82, 18, 2, 2800,  3700 },
+ *};
+ *
+ *static struct bq27xxx_dm_reg bq27621_dm_regs[] = {
+ *	[BQ27XXX_DM_DESIGN_CAPACITY]   = { 82, 3, 2,    0,  8000 },
+ *	[BQ27XXX_DM_DESIGN_ENERGY]     = { 82, 5, 2,    0, 32767 },
+ *	[BQ27XXX_DM_TERMINATE_VOLTAGE] = { 82, 9, 2, 2500,  3700 },
+ *};
+ */
 
 static struct bq27xxx_dm_reg *bq27xxx_dm_regs[] = {
-	[BQ27421] = bq27421_dm_regs, /* and BQ27441 */
-	[BQ27425] = bq27425_dm_regs,
-//	[BQ27621] = bq27621_dm_regs,
+	[BQ27500] = bq27500_dm_regs,
+	[BQ27545] = bq27545_dm_regs,
+	[BQ27421] = bq27421_dm_regs,
+/* requires di->chip/group distinction
+ *	[BQ27425] = bq27425_dm_regs,
+ *	[BQ27441] = bq27421_dm_regs,
+ *	[BQ27621] = bq27621_dm_regs,
+ */
 };
 
 static u32 bq27xxx_unseal_keys[] = {
-	[BQ27421] = 0x80008000, /* and BQ27441 */
-	[BQ27425] = 0x04143672,
-//	[BQ27621] = 0x80008000,
+	[BQ27500] = 0x04143672,
+	[BQ27545] = 0x04143672,
+	[BQ27421] = 0x80008000,
+/* requires di->chip/group distinction
+ *	[BQ27425] = 0x04143672,
+ *	[BQ27441] = 0x80008000,
+ *	[BQ27621] = 0x80008000,
+ */
 };
 
 
@@ -654,7 +679,7 @@ out:
 	return ret;
 }
 
-static u8 bq27xxx_battery_checksum(struct bq27xxx_dm_buf *buf)
+static u8 bq27xxx_battery_checksum_dm_block(struct bq27xxx_dm_buf *buf)
 {
 	u16 sum = 0;
 	int i;
@@ -689,7 +714,7 @@ static int bq27xxx_battery_read_dm_block(struct bq27xxx_device_info *di,
 	if (ret < 0)
 		goto out;
 
-	if ((u8)ret != bq27xxx_battery_checksum(buf)) {
+	if ((u8)ret != bq27xxx_battery_checksum_dm_block(buf)) {
 		ret = -EINVAL;
 		goto out;
 	}
@@ -778,7 +803,7 @@ static void bq27xxx_battery_update_dm_block(struct bq27xxx_device_info *di,
 {
 	struct bq27xxx_dm_reg *reg = &bq27xxx_dm_regs[di->chip][reg_id];
 	const char* str = bq27xxx_dm_reg_name[reg_id];
-	u16 *prev = bq27xxx_dm_buf_ptr(buf, reg);
+	u16 *prev = bq27xxx_dm_reg_ptr(buf, reg);
 
 	if (prev == NULL) {
 		dev_warn(di->dev, "buffer does not match %s dm spec\n", str);
@@ -816,7 +841,7 @@ static int bq27xxx_battery_set_cfgupdate(struct bq27xxx_device_info *di,
 		goto out;
 
 	do {
-		BQ27XXX_MSLEEP(50);
+		BQ27XXX_MSLEEP(25);
 		ret = di->bus.read(di, di->regs[BQ27XXX_REG_FLAGS], false);
 		if (ret < 0)
 			goto out;
@@ -870,7 +895,7 @@ static int bq27xxx_battery_write_dm_block(struct bq27xxx_device_info *di,
 		goto out;
 
 	ret = di->bus.write(di, di->regs[BQ27XXX_DM_CKSUM],
-			    bq27xxx_battery_checksum(buf), true);
+			    bq27xxx_battery_checksum_dm_block(buf), true);
 	if (ret < 0)
 		goto out;
 
@@ -883,7 +908,7 @@ static int bq27xxx_battery_write_dm_block(struct bq27xxx_device_info *di,
 	 * 1. MSLEEP(time) after above write(BQ27XXX_DM_CKSUM, ...)
 	 * 2. write(BQ27XXX_DM_BLOCK, buf->block)
 	 * 3. sum = read(BQ27XXX_DM_CKSUM)
-	 * 4. if (sum != bq27xxx_battery_checksum(buf))
+	 * 4. if (sum != bq27xxx_battery_checksum_dm_block(buf))
 	 *      report error
 	 */
 
@@ -892,6 +917,9 @@ static int bq27xxx_battery_write_dm_block(struct bq27xxx_device_info *di,
 		ret = bq27xxx_battery_set_cfgupdate(di, false);
 		if (ret < 0)
 			return ret;
+	} else {
+		/* flash DM updates in <100ms, but reset time isn't documented */
+		BQ27XXX_MSLEEP(400);
 	}
 
 	buf->updt = false;
@@ -908,7 +936,7 @@ out:
 static void bq27xxx_battery_set_config(struct bq27xxx_device_info *di,
 				       struct power_supply_battery_info *info)
 {
-	struct bq27xxx_dm_buf bd = BQ27XXX_DM_BUF(di, BQ27XXX_DM_DESIGN_ENERGY);
+	struct bq27xxx_dm_buf bd = BQ27XXX_DM_BUF(di, BQ27XXX_DM_DESIGN_CAPACITY);
 	struct bq27xxx_dm_buf bt = BQ27XXX_DM_BUF(di, BQ27XXX_DM_TERMINATE_VOLTAGE);
 
 	if (info->charge_full_design_uah != -EINVAL
