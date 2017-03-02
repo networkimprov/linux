@@ -240,8 +240,8 @@ static const struct i2c_device_id bq27xxx_i2c_id_table[] = {
 	{ "bq27545", BQ27545 },
 	{ "bq27421", BQ27421 },
 	{ "bq27425", BQ27425 },
-	{ "bq27441", BQ27421 },
-	{ "bq27621", BQ27421 },
+	{ "bq27441", BQ27425 },
+	{ "bq27621", BQ27425 },
 	{},
 };
 MODULE_DEVICE_TABLE(i2c, bq27xxx_i2c_id_table);
