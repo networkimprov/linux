@@ -59,7 +59,7 @@
 #define BQ27XXX_FLAG_DSC	BIT(0)
 #define BQ27XXX_FLAG_SOCF	BIT(1) /* State-of-Charge threshold final */
 #define BQ27XXX_FLAG_SOC1	BIT(2) /* State-of-Charge threshold 1 */
-#define BQ27XXX_FLAG_CFGUP	BIT(5)
+#define BQ27XXX_FLAG_CFGUP	BIT(4)
 #define BQ27XXX_FLAG_FC		BIT(9)
 #define BQ27XXX_FLAG_OTD	BIT(14)
 #define BQ27XXX_FLAG_OTC	BIT(15)
@@ -815,11 +815,8 @@ static int bq27xxx_battery_set_cfgupdate(struct bq27xxx_device_info *di,
 	if (ret < 0)
 		goto out;
 
-	if (di->chip == BQ27425) /* chip fails to set/clear flag */
-		return 0;
-
 	do {
-		BQ27XXX_MSLEEP(5);
+		BQ27XXX_MSLEEP(50);
 		ret = di->bus.read(di, di->regs[BQ27XXX_REG_FLAGS], false);
 		if (ret < 0)
 			goto out;
@@ -883,11 +880,11 @@ static int bq27xxx_battery_write_dm_block(struct bq27xxx_device_info *di,
 	 * It was suggested in this TI tool:
 	 *   http://git.ti.com/bms-linux/bqtool/blobs/master/gauge.c#line328
 	 *
-	 * 1. sleep 'time' after above write(BQ27XXX_DM_CKSUM, ...)
+	 * 1. MSLEEP(time) after above write(BQ27XXX_DM_CKSUM, ...)
 	 * 2. write(BQ27XXX_DM_BLOCK, buf->block)
 	 * 3. sum = read(BQ27XXX_DM_CKSUM)
 	 * 4. if (sum != bq27xxx_battery_checksum(buf))
-	 *      error
+	 *      report error
 	 */
 
 	if (cfgup) {
