@@ -304,9 +304,9 @@
 		};
 	};
 
-	bq27425: charger@55 {
+	bq27421: fuel-gauge@55 {
 		reg = <0x55>;
-		compatible = "ti,bq27425";
+		compatible = "ti,bq27421";
 	};
 
 	bq24190: charger@6b {
