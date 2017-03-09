@@ -310,30 +310,6 @@ static u8 bq27xxx_regs[][BQ27XXX_REG_MAX] = {
 		[BQ27XXX_DM_DATA] = 0x40,
 		[BQ27XXX_DM_CKSUM] = 0x60,
 	},
-	[BQ27425] = {
-		[BQ27XXX_REG_CTRL] = 0x00,
-		[BQ27XXX_REG_TEMP] = 0x02,
-		[BQ27XXX_REG_INT_TEMP] = 0x1e,
-		[BQ27XXX_REG_VOLT] = 0x04,
-		[BQ27XXX_REG_AI] = 0x10,
-		[BQ27XXX_REG_FLAGS] = 0x06,
-		[BQ27XXX_REG_TTE] = INVALID_REG_ADDR,
-		[BQ27XXX_REG_TTF] = INVALID_REG_ADDR,
-		[BQ27XXX_REG_TTES] = INVALID_REG_ADDR,
-		[BQ27XXX_REG_TTECP] = INVALID_REG_ADDR,
-		[BQ27XXX_REG_NAC] = 0x08,
-		[BQ27XXX_REG_FCC] = 0x0e,
-		[BQ27XXX_REG_CYCT] = INVALID_REG_ADDR,
-		[BQ27XXX_REG_AE] = INVALID_REG_ADDR,
-		[BQ27XXX_REG_SOC] = 0x1c,
-		[BQ27XXX_REG_DCAP] = 0x3c,
-		[BQ27XXX_REG_AP] = 0x18,
-		[BQ27XXX_DM_CTRL] = 0x61,
-		[BQ27XXX_DM_CLASS] = 0x3e,
-		[BQ27XXX_DM_BLOCK] = 0x3f,
-		[BQ27XXX_DM_DATA] = 0x40,
-		[BQ27XXX_DM_CKSUM] = 0x60,
-	},
 };
 
 static enum power_supply_property bq27000_battery_props[] = {
@@ -502,7 +478,6 @@ static struct {
 	BQ27XXX_PROP(BQ27541, bq27541_battery_props),
 	BQ27XXX_PROP(BQ27545, bq27545_battery_props),
 	BQ27XXX_PROP(BQ27421, bq27421_battery_props),
-	BQ27XXX_PROP(BQ27425, bq27421_battery_props),
 };
 
 static DEFINE_MUTEX(bq27xxx_list_lock);
@@ -1170,7 +1145,6 @@ static bool bq27xxx_battery_overtemp(struct bq27xxx_device_info *di, u16 flags)
 		return flags & (BQ27XXX_FLAG_OTC | BQ27XXX_FLAG_OTD);
 	case BQ27530:
 	case BQ27421:
-	case BQ27425:
 		return flags & BQ27XXX_FLAG_OT;
 	default:
 		return false;
@@ -1182,7 +1156,7 @@ static bool bq27xxx_battery_overtemp(struct bq27xxx_device_info *di, u16 flags)
  */
 static bool bq27xxx_battery_undertemp(struct bq27xxx_device_info *di, u16 flags)
 {
-	if (di->chip == BQ27530 || di->chip == BQ27421 || di->chip == BQ27425)
+	if (di->chip == BQ27530 || di->chip == BQ27421)
 		return flags & BQ27XXX_FLAG_UT;
 
 	return false;
@@ -1518,6 +1492,19 @@ int bq27xxx_battery_setup(struct bq27xxx_device_info *di)
 		.of_node = di->dev->of_node,
 		.drv_data = di,
 	};
+
+	di->dmid = di->chip;
+	switch(di->dmid) {
+	case BQ27520: di->chip = BQ27510; break;
+	case BQ27531: di->chip = BQ27530; break;
+	case BQ27542: di->chip = BQ27541; break;
+	case BQ27546: di->chip = BQ27541; break;
+	case BQ27742: di->chip = BQ27541; break;
+	case BQ27425: di->chip = BQ27421; break;
+	case BQ27441: di->chip = BQ27421; break;
+	case BQ27621: di->chip = BQ27421; break;
+	default: break;
+	}
 
 	INIT_DELAYED_WORK(&di->work, bq27xxx_battery_poll);
 	mutex_init(&di->lock);

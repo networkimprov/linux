@@ -3,14 +3,23 @@
 
 enum bq27xxx_chip {
 	BQ27000 = 1, /* bq27000, bq27200 */
-	BQ27010, /* bq27010, bq27210 */
-	BQ27500, /* bq27500 */
-	BQ27510, /* bq27510, bq27520 */
-	BQ27530, /* bq27530, bq27531 */
-	BQ27541, /* bq27541, bq27542, bq27546, bq27742 */
-	BQ27545, /* bq27545 */
-	BQ27421, /* bq27421 */
-	BQ27425, /* bq27425, bq27441, bq27621 */
+	BQ27010 = 2, /* bq27010, bq27210 */
+	BQ27500 = 3, /* bq27500 */
+	BQ27510 = 4, /* bq27510, bq27520 */
+	BQ27530 = 5, /* bq27530, bq27531 */
+	BQ27541 = 6, /* bq27541, bq27542, bq27546, bq27742 */
+	BQ27545 = 7, /* bq27545 */
+	BQ27421 = 8, /* bq27421, bq27425, bq27441, bq27621 */
+
+	/* members of above groups */
+	BQ27520 = 21,
+	BQ27531 = 22,
+	BQ27542 = 23,
+	BQ27546 = 24,
+	BQ27742 = 25,
+	BQ27425 = 26,
+	BQ27441 = 27,
+	BQ27621 = 28,
 };
 
 /**
@@ -56,6 +65,7 @@ struct bq27xxx_device_info {
 	struct device *dev;
 	int id;
 	enum bq27xxx_chip chip;
+	enum bq27xxx_chip dmid;
 	const char *name;
 	struct bq27xxx_access_methods bus;
 	struct bq27xxx_reg_cache cache;
