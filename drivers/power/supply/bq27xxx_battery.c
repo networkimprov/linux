@@ -502,8 +502,8 @@ struct bq27xxx_dm_buf {
 };
 
 #define BQ27XXX_DM_BUF(di, i) { \
-	.class = bq27xxx_dm_regs[(di)->chip][i].subclass_id, \
-	.block = bq27xxx_dm_regs[(di)->chip][i].offset / BQ27XXX_DM_SZ, \
+	.class = bq27xxx_dm_regs[(di)->dmid][i].subclass_id, \
+	.block = bq27xxx_dm_regs[(di)->dmid][i].offset / BQ27XXX_DM_SZ, \
 }
 
 static inline u16* bq27xxx_dm_reg_ptr(struct bq27xxx_dm_buf *buf,
@@ -546,40 +546,34 @@ static struct bq27xxx_dm_reg bq27421_dm_regs[] = {
 	[BQ27XXX_DM_TERMINATE_VOLTAGE] = { 82, 16, 2, 2500,  3700 },
 };
 
-/* requires di->chip/group distinction
- *static struct bq27xxx_dm_reg bq27425_dm_regs[] = {
- *	[BQ27XXX_DM_DESIGN_CAPACITY]   = { 82, 12, 2,    0, 32767 },
- *	[BQ27XXX_DM_DESIGN_ENERGY]     = { 82, 14, 2,    0, 32767 },
- *	[BQ27XXX_DM_TERMINATE_VOLTAGE] = { 82, 18, 2, 2800,  3700 },
- *};
- *
- *static struct bq27xxx_dm_reg bq27621_dm_regs[] = {
- *	[BQ27XXX_DM_DESIGN_CAPACITY]   = { 82, 3, 2,    0,  8000 },
- *	[BQ27XXX_DM_DESIGN_ENERGY]     = { 82, 5, 2,    0, 32767 },
- *	[BQ27XXX_DM_TERMINATE_VOLTAGE] = { 82, 9, 2, 2500,  3700 },
- *};
- */
+static struct bq27xxx_dm_reg bq27425_dm_regs[] = {
+	[BQ27XXX_DM_DESIGN_CAPACITY]   = { 82, 12, 2,    0, 32767 },
+	[BQ27XXX_DM_DESIGN_ENERGY]     = { 82, 14, 2,    0, 32767 },
+	[BQ27XXX_DM_TERMINATE_VOLTAGE] = { 82, 18, 2, 2800,  3700 },
+};
+
+static struct bq27xxx_dm_reg bq27621_dm_regs[] = {
+	[BQ27XXX_DM_DESIGN_CAPACITY]   = { 82, 3, 2,    0,  8000 },
+	[BQ27XXX_DM_DESIGN_ENERGY]     = { 82, 5, 2,    0, 32767 },
+	[BQ27XXX_DM_TERMINATE_VOLTAGE] = { 82, 9, 2, 2500,  3700 },
+};
 
 static struct bq27xxx_dm_reg *bq27xxx_dm_regs[] = {
 	[BQ27500] = bq27500_dm_regs,
 	[BQ27545] = bq27545_dm_regs,
 	[BQ27421] = bq27421_dm_regs,
-/* requires di->chip/group distinction
- *	[BQ27425] = bq27425_dm_regs,
- *	[BQ27441] = bq27421_dm_regs,
- *	[BQ27621] = bq27621_dm_regs,
- */
+	[BQ27425] = bq27425_dm_regs,
+	[BQ27441] = bq27421_dm_regs,
+	[BQ27621] = bq27621_dm_regs,
 };
 
 static u32 bq27xxx_unseal_keys[] = {
 	[BQ27500] = 0x04143672,
 	[BQ27545] = 0x04143672,
 	[BQ27421] = 0x80008000,
-/* requires di->chip/group distinction
- *	[BQ27425] = 0x04143672,
- *	[BQ27441] = 0x80008000,
- *	[BQ27621] = 0x80008000,
- */
+	[BQ27425] = 0x04143672,
+	[BQ27441] = 0x80008000,
+	[BQ27621] = 0x80008000,
 };
 
 
@@ -708,7 +702,7 @@ static void bq27xxx_battery_update_dm_block(struct bq27xxx_device_info *di,
 					    enum bq27xxx_dm_reg_id reg_id,
 					    unsigned int val)
 {
-	struct bq27xxx_dm_reg *reg = &bq27xxx_dm_regs[di->chip][reg_id];
+	struct bq27xxx_dm_reg *reg = &bq27xxx_dm_regs[di->dmid][reg_id];
 	const char* str = bq27xxx_dm_reg_name[reg_id];
 	u16 *prev = bq27xxx_dm_reg_ptr(buf, reg);
 
@@ -771,7 +765,7 @@ out:
 static int bq27xxx_battery_write_dm_block(struct bq27xxx_device_info *di,
 					  struct bq27xxx_dm_buf *buf)
 {
-	bool cfgup = di->chip == BQ27425 || di->chip == BQ27421; /* || BQ27441 || BQ27621 */
+	bool cfgup = di->chip == BQ27421; /* assume group supports cfgupdate */
 	int ret;
 
 	if (!buf->updt)
@@ -881,7 +875,7 @@ void bq27xxx_battery_settings(struct bq27xxx_device_info *di)
 		return;
 
 	/* no settings to be set for this chipset so abort */
-	if (!bq27xxx_dm_regs[di->chip])
+	if (!bq27xxx_dm_regs[di->dmid])
 		return;
 
 	if (bq27xxx_battery_set_seal_state(di, false) < 0)
@@ -900,7 +894,7 @@ void bq27xxx_battery_settings(struct bq27xxx_device_info *di)
 	}
 
 	/* assume min == 0 */
-	max = bq27xxx_dm_regs[di->chip][BQ27XXX_DM_DESIGN_ENERGY].max;
+	max = bq27xxx_dm_regs[di->dmid][BQ27XXX_DM_DESIGN_ENERGY].max;
 	if (info.energy_full_design_uwh > max * 1000) {
 		dev_err(di->dev,
 		       "invalid battery:energy-full-design-microwatt-hours %d\n",
@@ -909,7 +903,7 @@ void bq27xxx_battery_settings(struct bq27xxx_device_info *di)
 	}
 
 	/* assume min == 0 */
-	max = bq27xxx_dm_regs[di->chip][BQ27XXX_DM_DESIGN_CAPACITY].max;
+	max = bq27xxx_dm_regs[di->dmid][BQ27XXX_DM_DESIGN_CAPACITY].max;
 	if (info.charge_full_design_uah > max * 1000) {
 		dev_err(di->dev,
 		       "invalid battery:charge-full-design-microamp-hours %d\n",
@@ -917,8 +911,8 @@ void bq27xxx_battery_settings(struct bq27xxx_device_info *di)
 		info.charge_full_design_uah = -EINVAL;
 	}
 
-	min = bq27xxx_dm_regs[di->chip][BQ27XXX_DM_TERMINATE_VOLTAGE].min;
-	max = bq27xxx_dm_regs[di->chip][BQ27XXX_DM_TERMINATE_VOLTAGE].max;
+	min = bq27xxx_dm_regs[di->dmid][BQ27XXX_DM_TERMINATE_VOLTAGE].min;
+	max = bq27xxx_dm_regs[di->dmid][BQ27XXX_DM_TERMINATE_VOLTAGE].max;
 	if ((info.voltage_min_design_uv < min * 1000
 	  || info.voltage_min_design_uv > max * 1000)
 	  && info.voltage_min_design_uv != -EINVAL) {
