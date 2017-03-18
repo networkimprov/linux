@@ -513,8 +513,13 @@ int power_supply_get_battery_info(struct power_supply *psy,
 	if (err)
 		return err;
 
-	if (strcmp("fixed-battery", value))
+	if (strcmp("simple-battery", value))
 		return -ENODEV;
+
+	/* The property and field names below must correspond to elements
+	 * in enum power_supply_property. For reasoning, see
+	 * Documentation/power/power_supply_class.txt.
+	 */
 
 	of_property_read_u32(battery_np, "energy-full-design-microwatt-hours",
 			     &info->energy_full_design_uwh);
