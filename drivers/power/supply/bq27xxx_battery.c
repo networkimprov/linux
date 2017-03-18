@@ -644,15 +644,15 @@ static int bq27xxx_battery_set_seal_state(struct bq27xxx_device_info *di,
 	int ret;
 
 	if (state) {
-		ret = di->bus.write(di, di->regs[BQ27XXX_REG_CTRL], BQ27XXX_SEALED, false);
+		ret = bq27xxx_write(di, BQ27XXX_REG_CTRL, BQ27XXX_SEALED, false);
 		if (ret < 0)
 			goto out;
 	} else {
-		ret = di->bus.write(di, di->regs[BQ27XXX_REG_CTRL], (u16)(di->unseal_key >> 16), false);
+		ret = bq27xxx_write(di, BQ27XXX_REG_CTRL, (u16)(di->unseal_key >> 16), false);
 		if (ret < 0)
 			goto out;
 
-		ret = di->bus.write(di, di->regs[BQ27XXX_REG_CTRL], (u16)di->unseal_key, false);
+		ret = bq27xxx_write(di, BQ27XXX_REG_CTRL, (u16)di->unseal_key, false);
 		if (ret < 0)
 			goto out;
 	}
@@ -680,21 +680,21 @@ static int bq27xxx_battery_read_dm_block(struct bq27xxx_device_info *di,
 {
 	int ret;
 
-	ret = di->bus.write(di, di->regs[BQ27XXX_DM_CLASS], buf->class, true);
+	ret = bq27xxx_write(di, BQ27XXX_DM_CLASS, buf->class, true);
 	if (ret < 0)
 		goto out;
 
-	ret = di->bus.write(di, di->regs[BQ27XXX_DM_BLOCK], buf->block, true);
+	ret = bq27xxx_write(di, BQ27XXX_DM_BLOCK, buf->block, true);
 	if (ret < 0)
 		goto out;
 
 	BQ27XXX_MSLEEP(1);
 
-	ret = di->bus.read_bulk(di, di->regs[BQ27XXX_DM_DATA], buf->a, BQ27XXX_DM_SZ);
+	ret = bq27xxx_xfer(di, buf, true);
 	if (ret < 0)
 		goto out;
 
-	ret = di->bus.read(di, di->regs[BQ27XXX_DM_CKSUM], true);
+	ret = bq27xxx_read(di, BQ27XXX_DM_CKSUM, true);
 	if (ret < 0)
 		goto out;
 
@@ -745,13 +745,13 @@ static void bq27xxx_battery_update_dm_block(struct bq27xxx_device_info *di,
 	buf->updt = true;
 }
 
-static int bq27xxx_battery_set_cfgupdate(struct bq27xxx_device_info *di,
-					 bool state)
+static int bq27xxx_battery_set_cfgupdate(struct bq27xxx_device_info *di, u16 flag)
 {
-	int ret, try=100;
+	const int limit = 100;
+	int ret, try = limit;
 
-	ret = di->bus.write(di, di->regs[BQ27XXX_REG_CTRL],
-			    state ? BQ27XXX_SET_CFGUPDATE : BQ27XXX_SOFT_RESET,
+	ret = bq27xxx_write(di, BQ27XXX_REG_CTRL,
+			    flag ? BQ27XXX_SET_CFGUPDATE : BQ27XXX_SOFT_RESET,
 			    false);
 	if (ret < 0)
 		goto out;
@@ -761,20 +761,20 @@ static int bq27xxx_battery_set_cfgupdate(struct bq27xxx_device_info *di,
 		ret = di->bus.read(di, di->regs[BQ27XXX_REG_FLAGS], false);
 		if (ret < 0)
 			goto out;
-	} while (!(ret & BQ27XXX_FLAG_CFGUP) == state && --try);
+	} while ((ret & BQ27XXX_FLAG_CFGUP) != flag && --try);
 
 	if (!try) {
-		dev_err(di->dev, "timed out waiting for cfgupdate flag %d\n", state);
+		dev_err(di->dev, "timed out waiting for cfgupdate flag %d\n", !!flag);
 		return -EINVAL;
 	}
 
-	if (100-try > 3)
-		dev_warn(di->dev, "cfgupdate %d, retries %d\n", state, 100-try);
+	if (limit-try > 3)
+		dev_warn(di->dev, "cfgupdate %d, retries %d\n", !!flag, limit-try);
 
 	return 0;
 
 out:
-	dev_err(di->dev, "bus error on %s: %d\n", state ? "set_cfgupdate" : "soft_reset", ret);
+	dev_err(di->dev, "bus error on %s: %d\n", flag ? "set_cfgupdate" : "soft_reset", ret);
 	return ret;
 }
 
@@ -788,30 +788,30 @@ static int bq27xxx_battery_write_dm_block(struct bq27xxx_device_info *di,
 		return 0;
 
 	if (cfgup) {
-		ret = bq27xxx_battery_set_cfgupdate(di, true);
+		ret = bq27xxx_battery_set_cfgupdate(di, BQ27XXX_FLAG_CFGUP);
 		if (ret < 0)
 			return ret;
 	}
 
-	ret = di->bus.write(di, di->regs[BQ27XXX_DM_CTRL], 0, true);
+	ret = bq27xxx_write(di, BQ27XXX_DM_CTRL, 0, true);
 	if (ret < 0)
 		goto out;
 
-	ret = di->bus.write(di, di->regs[BQ27XXX_DM_CLASS], buf->class, true);
+	ret = bq27xxx_write(di, BQ27XXX_DM_CLASS, buf->class, true);
 	if (ret < 0)
 		goto out;
 
-	ret = di->bus.write(di, di->regs[BQ27XXX_DM_BLOCK], buf->block, true);
+	ret = bq27xxx_write(di, BQ27XXX_DM_BLOCK, buf->block, true);
 	if (ret < 0)
 		goto out;
 
 	BQ27XXX_MSLEEP(1);
 
-	ret = di->bus.write_bulk(di, di->regs[BQ27XXX_DM_DATA], buf->a, BQ27XXX_DM_SZ);
+	ret = bq27xxx_xfer(di, buf, false);
 	if (ret < 0)
 		goto out;
 
-	ret = di->bus.write(di, di->regs[BQ27XXX_DM_CKSUM],
+	ret = bq27xxx_write(di, BQ27XXX_DM_CKSUM,
 			    bq27xxx_battery_checksum_dm_block(buf), true);
 	if (ret < 0)
 		goto out;
@@ -831,7 +831,7 @@ static int bq27xxx_battery_write_dm_block(struct bq27xxx_device_info *di,
 
 	if (cfgup) {
 		BQ27XXX_MSLEEP(1);
-		ret = bq27xxx_battery_set_cfgupdate(di, false);
+		ret = bq27xxx_battery_set_cfgupdate(di, 0);
 		if (ret < 0)
 			return ret;
 	} else {
@@ -844,7 +844,7 @@ static int bq27xxx_battery_write_dm_block(struct bq27xxx_device_info *di,
 
 out:
 	if (cfgup)
-		bq27xxx_battery_set_cfgupdate(di, false);
+		bq27xxx_battery_set_cfgupdate(di, 0);
 
 	dev_err(di->dev, "bus error writing chip memory: %d\n", ret);
 	return ret;
@@ -938,12 +938,10 @@ void bq27xxx_battery_settings(struct bq27xxx_device_info *di)
 		info.voltage_min_design_uv = -EINVAL;
 	}
 
-	if ((info.energy_full_design_uwh == -EINVAL
-	  || info.charge_full_design_uah == -EINVAL)
-	  && info.voltage_min_design_uv  == -EINVAL)
-		goto out;
-
-	bq27xxx_battery_set_config(di, &info);
+	if ((info.energy_full_design_uwh != -EINVAL
+	  && info.charge_full_design_uah != -EINVAL)
+	  || info.voltage_min_design_uv  != -EINVAL)
+		bq27xxx_battery_set_config(di, &info);
 
 out:
 	bq27xxx_battery_set_seal_state(di, true);
