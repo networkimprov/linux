@@ -1,4 +1,4 @@
-Binding for TI BQ27XXX fuel gauge family
+Binding for TI BQ27XXX fuel gauge family 
 
 Required properties:
 - compatible: Should contain one of the following:
