@@ -77,6 +77,7 @@
 #define BQ27XXX_SEALED			0x20
 #define BQ27XXX_SET_CFGUPDATE		0x13
 #define BQ27XXX_SOFT_RESET		0x42
+#define BQ27XXX_RESET			0x41
 
 #define BQ27XXX_RS			(20) /* Resistor sense mOhm */
 #define BQ27XXX_POWER_CONSTANT		(29200) /* 29.2 µV^2 * 1000 */
@@ -841,8 +842,7 @@ static int bq27xxx_battery_write_dm_block(struct bq27xxx_device_info *di,
 		if (ret < 0)
 			return ret;
 	} else {
-		/* flash DM updates in <100ms, but reset time isn't documented */
-		BQ27XXX_MSLEEP(400);
+		BQ27XXX_MSLEEP(100); /* flash DM updates in <100ms */
 	}
 
 	buf->updt = false;
@@ -885,6 +885,12 @@ static void bq27xxx_battery_set_config(struct bq27xxx_device_info *di,
 
 	bq27xxx_battery_write_dm_block(di, &bd);
 	bq27xxx_battery_write_dm_block(di, &bt);
+
+	if (di->chip != BQ27421) { /* not a cfgupdate chip, so reset */
+		bq27xxx_write(di, BQ27XXX_REG_CTRL, BQ27XXX_RESET, false);
+		BQ27XXX_MSLEEP(300); /* reset time is not documented */
+	}
+	/* assume bq27xxx_battery_update() is called hereafter */
 }
 
 void bq27xxx_battery_settings(struct bq27xxx_device_info *di)
