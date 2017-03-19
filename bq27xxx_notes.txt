@@ -1,4 +1,4 @@
-Subject: [PATCH v10 0/8] devicetree battery support and client bq27xxx_battery
+Subject: [PATCH v11 0/9] devicetree battery support and client bq27xxx_battery
 To: Sebastian Reichel <sre@kernel.org>
 Cc: "Andrew F. Davis" <afd@ti.com>, linux-pm@vger.kernel.org, Matt Ranostay <matt@ranostay.consulting>
 
@@ -11,6 +11,18 @@ Overview:
 * bq27xxx driver calls the above and writes battery data to RAM/NVM for params
   essential to correct operation: energy-full-design-microwatt-hours,
   charge-full-design-microamp-hours, voltage-min-design-microvolt
+
+Changes in v11:
+  power_supply_core:
+*   switch to compatible = "simple-battery"
+*   add docs to power_supply_class.txt
+  Documentation/devicetree/.../battery.txt:
+*   add description, drop refs to Linux, "simple-battery"
+  bq27xxx_battery:
+*   new patch to clean up error reporting
+*   reset flash chips after DM update
+*   add bq27xxx_write/xfer()
+*   polishing from Andrew's feedback
 
 Changes in v10:
   bq27xxx_battery:
