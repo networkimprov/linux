@@ -1228,7 +1228,7 @@ static enum power_supply_property bq24190_battery_properties[] = {
 
 static const struct power_supply_desc bq24190_battery_desc = {
 	.name			= "bq24190-battery",
-	.type			= POWER_SUPPLY_TYPE_BATTERY,
+	.type			= POWER_SUPPLY_TYPE_UNKNOWN,
 	.properties		= bq24190_battery_properties,
 	.num_properties		= ARRAY_SIZE(bq24190_battery_properties),
 	.get_property		= bq24190_battery_get_property,
