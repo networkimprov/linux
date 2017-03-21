@@ -1,0 +1,12 @@
+Subject: [PATCH v1 0/7] BQ24190 support for power_supply_battery_info and DT binding
+To: Sebastian Reichel <sre@kernel.org>
+Cc: Tony Lindgren <tony@atomide.com>, linux-pm@vger.kernel.org, Hans de Goede <hdegoede@redhat.com>
+
+Overview:
+BQ24190 needs settings for pre-charge & end-charge current and system min voltage to function 
+correctly. Pre- and end-charge current belong in power_supply_battery_info as they are based on 
+battery capacity. We add _PRECHARGE & _ENDCHARGE elements to enum power_supply_property.
+
+Issues in v1:
+* power_supply_prop_precharge & endcharge are added at end of enum to avoid sysfs breakage
+* "Set bq24190-battery device .type=unknown" is a temporary workaround to be fixed in v2
