@@ -1,0 +1,27 @@
+Subject: [PATCH v4 0/5] BQ24190 devicetree config
+To: Sebastian Reichel <sre@kernel.org>, linux-pm@vger.kernel.org
+Cc: Tony Lindgren <tony@atomide.com>, Hans de Goede <hdegoede@redhat.com>
+
+Hi Sebastian, here is this series that was waiting on the power_supply_battery_info
+patchset. Thanks!
+
+Overview:
+BQ24190 uses power_supply_battery_info fields for precharge & charge-termination 
+current and a DT property for system min voltage. A new DT binding documents these.
+
+Changes in v4:
+* drop ifdef config_of
+
+Changes in v3:
+* clarify gpio-hog use in DT binding doc
+* drop unrelated change from DT table patch
+
+Changes in v2:
+* new patch adds bq24192i to DT table
+* dropped patches for power_supply precharge-current; they moved to bq27xxx series
+* dropped patches for recently-applied fixes
+* rebased to -next
+
+Issues in v1:
+* power_supply_prop_precharge & endcharge are added at end of enum to avoid sysfs breakage
+* "Set bq24190-battery device .type=unknown" is a temporary workaround to be fixed in v2
