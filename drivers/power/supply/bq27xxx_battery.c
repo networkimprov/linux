@@ -1092,6 +1092,9 @@ static void bq27xxx_battery_set_config(struct bq27xxx_device_info *di,
 	struct bq27xxx_dm_buf bd = BQ27XXX_DM_BUF(di, BQ27XXX_DM_DESIGN_CAPACITY);
 	struct bq27xxx_dm_buf bt = BQ27XXX_DM_BUF(di, BQ27XXX_DM_TERMINATE_VOLTAGE);
 
+	if (bq27xxx_battery_set_seal_state(di, false) < 0)
+		return;
+
 	if (info->charge_full_design_uah != -EINVAL
 	 && info->energy_full_design_uwh != -EINVAL) {
 		bq27xxx_battery_read_dm_block(di, &bd);
@@ -1116,6 +1119,8 @@ static void bq27xxx_battery_set_config(struct bq27xxx_device_info *di,
 	bq27xxx_battery_write_dm_block(di, &bd);
 	bq27xxx_battery_write_dm_block(di, &bt);
 
+	bq27xxx_battery_set_seal_state(di, true);
+
 	if (di->chip != BQ27421) { /* not a cfgupdate chip, so reset */
 		bq27xxx_write(di, BQ27XXX_REG_CTRL, BQ27XXX_RESET, false);
 		BQ27XXX_MSLEEP(300); /* reset time is not documented */
@@ -1128,19 +1133,11 @@ void bq27xxx_battery_settings(struct bq27xxx_device_info *di)
 	struct power_supply_battery_info info = {};
 	unsigned int min, max;
 
-	/* functions don't exist for writing data so abort */
-	if (!di->bus.write || !di->bus.write_bulk)
-		return;
-
-	/* no settings to be set for this chipset so abort */
 	if (!di->dm_regs)
 		return;
 
-	if (bq27xxx_battery_set_seal_state(di, false) < 0)
-		return;
-
 	if (power_supply_get_battery_info(di->bat, &info) < 0)
-		goto out;
+		return;
 
 	if (info.energy_full_design_uwh != info.charge_full_design_uah) {
 		if (info.energy_full_design_uwh == -EINVAL)
@@ -1184,9 +1181,6 @@ void bq27xxx_battery_settings(struct bq27xxx_device_info *di)
 	  && info.charge_full_design_uah != -EINVAL)
 	  || info.voltage_min_design_uv  != -EINVAL)
 		bq27xxx_battery_set_config(di, &info);
-
-out:
-	bq27xxx_battery_set_seal_state(di, true);
 }
 
 /*
