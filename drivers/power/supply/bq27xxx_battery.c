@@ -845,7 +845,7 @@ static inline int bq27xxx_write(struct bq27xxx_device_info *di, int reg_index,
 {
 	int ret;
 
-	if (!di || di->regs[reg_index] == INVALID_REG_ADDR)
+	if (!di || di->regs[reg_index] == INVALID_REG_ADDR || !di->bus.write)
 		return -EINVAL;
 
 	ret = di->bus.write(di, di->regs[reg_index], value, single);
@@ -856,23 +856,33 @@ static inline int bq27xxx_write(struct bq27xxx_device_info *di, int reg_index,
 	return ret;
 }
 
-static inline int bq27xxx_xfer(struct bq27xxx_device_info *di,
-			       struct bq27xxx_dm_buf *buf, bool read)
+static int bq27xxx_xfer(struct bq27xxx_device_info *di,
+			int (*xfer)(struct bq27xxx_device_info*, u8, u8*, int),
+			u8* data, int len)
 {
 	int ret;
-	int (*xfer)(struct bq27xxx_device_info*, u8, u8*, int) =
-		read ? di->bus.read_bulk : di->bus.write_bulk;
 
-	if (!di || di->regs[BQ27XXX_DM_DATA] == INVALID_REG_ADDR)
+	if (!di || di->regs[BQ27XXX_DM_DATA] == INVALID_REG_ADDR || !xfer)
 		return -EINVAL;
 
-	ret = xfer(di, di->regs[BQ27XXX_DM_DATA], buf->a, BQ27XXX_DM_SZ);
+	ret = xfer(di, di->regs[BQ27XXX_DM_DATA], data, len);
 	if (ret < 0)
-		dev_dbg(di->dev, "failed to %s_bulk register 0x%02x (index %d)\n",
-			read ? "read" : "write",
+		dev_dbg(di->dev, "failed to xfer register 0x%02x (index %d)\n",
 			di->regs[BQ27XXX_DM_DATA], BQ27XXX_DM_DATA);
 
 	return ret;
+}
+
+static inline int bq27xxx_read_block(struct bq27xxx_device_info *di,
+				     u8* data, int len)
+{
+	return bq27xxx_xfer(di, di ? di->bus.read_bulk : 0, data, len);
+}
+
+static inline int bq27xxx_write_block(struct bq27xxx_device_info *di,
+				      u8* data, int len)
+{
+	return bq27xxx_xfer(di, di ? di->bus.write_bulk : 0, data, len);
 }
 
 static int bq27xxx_battery_set_seal_state(struct bq27xxx_device_info *di,
