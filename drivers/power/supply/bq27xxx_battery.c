@@ -759,6 +759,36 @@ static const char* bq27xxx_dm_reg_name[] = {
 	[BQ27XXX_DM_TERMINATE_VOLTAGE] = "terminate-voltage",
 };
 
+static struct bq27xxx_dm_reg bq27500_dm_regs[] = {
+	[BQ27XXX_DM_DESIGN_CAPACITY]   = { 48, 10, 2,    0, 65535 },
+	[BQ27XXX_DM_DESIGN_ENERGY]     = { }, /* missing on chip */
+	[BQ27XXX_DM_TERMINATE_VOLTAGE] = { 80, 48, 2, 1000, 32767 },
+};
+
+static struct bq27xxx_dm_reg bq27545_dm_regs[] = {
+	[BQ27XXX_DM_DESIGN_CAPACITY]   = { 48, 23, 2,    0, 32767 },
+	[BQ27XXX_DM_DESIGN_ENERGY]     = { 48, 25, 2,    0, 32767 },
+	[BQ27XXX_DM_TERMINATE_VOLTAGE] = { 80, 67, 2, 2800,  3700 },
+};
+
+static struct bq27xxx_dm_reg bq27421_dm_regs[] = {
+	[BQ27XXX_DM_DESIGN_CAPACITY]   = { 82, 10, 2,    0,  8000 },
+	[BQ27XXX_DM_DESIGN_ENERGY]     = { 82, 12, 2,    0, 32767 },
+	[BQ27XXX_DM_TERMINATE_VOLTAGE] = { 82, 16, 2, 2500,  3700 },
+};
+
+static struct bq27xxx_dm_reg bq27425_dm_regs[] = {
+	[BQ27XXX_DM_DESIGN_CAPACITY]   = { 82, 12, 2,    0, 32767 },
+	[BQ27XXX_DM_DESIGN_ENERGY]     = { 82, 14, 2,    0, 32767 },
+	[BQ27XXX_DM_TERMINATE_VOLTAGE] = { 82, 18, 2, 2800,  3700 },
+};
+
+static struct bq27xxx_dm_reg bq27621_dm_regs[] = {
+	[BQ27XXX_DM_DESIGN_CAPACITY]   = { 82, 3, 2,    0,  8000 },
+	[BQ27XXX_DM_DESIGN_ENERGY]     = { 82, 5, 2,    0, 32767 },
+	[BQ27XXX_DM_TERMINATE_VOLTAGE] = { 82, 9, 2, 2500,  3700 },
+};
+
 
 static int poll_interval_param_set(const char *val, const struct kernel_param *kp)
 {
@@ -1715,13 +1745,48 @@ static void bq27xxx_external_power_changed(struct power_supply *psy)
 	schedule_delayed_work(&di->work, 0);
 }
 
-int bq27xxx_battery_setup(struct bq27xxx_device_info *di)
+#define BQ27XXX_INIT(c,d,k)   \
+	di->chip       = (c); \
+	di->dm_regs    = (d); \
+	di->unseal_key = (k)
+
+int bq27xxx_battery_setup(struct bq27xxx_device_info *di, enum bq27xxx_chip real_chip)
 {
 	struct power_supply_desc *psy_desc;
 	struct power_supply_config psy_cfg = {
 		.of_node = di->dev->of_node,
 		.drv_data = di,
 	};
+
+	switch(real_chip) {
+	                /* categories */
+	case BQ27000:   BQ27XXX_INIT(real_chip, 0, 0); break;
+	case BQ27010:   BQ27XXX_INIT(real_chip, 0, 0); break;
+	case BQ2750X:   BQ27XXX_INIT(real_chip, 0, 0); break;
+	case BQ27500:   BQ27XXX_INIT(real_chip, bq27500_dm_regs, 0x04143672); break;
+	case BQ27510G3: BQ27XXX_INIT(real_chip, 0, 0); break;
+	case BQ27520G1: BQ27XXX_INIT(real_chip, 0, 0); break;
+	case BQ27520G2: BQ27XXX_INIT(real_chip, 0, 0); break;
+	case BQ27520G3: BQ27XXX_INIT(real_chip, 0, 0); break;
+	case BQ27520G4: BQ27XXX_INIT(real_chip, 0, 0); break;
+	case BQ27530:   BQ27XXX_INIT(real_chip, 0, 0); break;
+	case BQ27541:   BQ27XXX_INIT(real_chip, 0, 0); break;
+	case BQ27545:   BQ27XXX_INIT(real_chip, bq27545_dm_regs, 0x04143672); break;
+	case BQ27421:   BQ27XXX_INIT(real_chip, bq27421_dm_regs, 0x80008000); break;
+
+	                /* members of categories */
+	case BQ2751X:   BQ27XXX_INIT(BQ27510G3, 0, 0); break;
+	case BQ2752X:   BQ27XXX_INIT(BQ27510G3, 0, 0); break;
+	case BQ27510G1: BQ27XXX_INIT(BQ27500,   0, 0); break;
+	case BQ27510G2: BQ27XXX_INIT(BQ27500,   0, 0); break;
+	case BQ27531:   BQ27XXX_INIT(BQ27530,   0, 0); break;
+	case BQ27542:   BQ27XXX_INIT(BQ27541,   0, 0); break;
+	case BQ27546:   BQ27XXX_INIT(BQ27541,   0, 0); break;
+	case BQ27742:   BQ27XXX_INIT(BQ27541,   0, 0); break;
+	case BQ27425:   BQ27XXX_INIT(BQ27421,   bq27425_dm_regs, 0x04143672); break;
+	case BQ27441:   BQ27XXX_INIT(BQ27421,   bq27421_dm_regs, 0x80008000); break;
+	case BQ27621:   BQ27XXX_INIT(BQ27421,   bq27621_dm_regs, 0x80008000); break;
+	}
 
 	INIT_DELAYED_WORK(&di->work, bq27xxx_battery_poll);
 	mutex_init(&di->lock);
@@ -1840,11 +1905,10 @@ static int bq27xxx_battery_platform_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, di);
 
 	di->dev = &pdev->dev;
-	di->chip = pdata->chip;
 	di->name = pdata->name ?: dev_name(&pdev->dev);
 	di->bus.read = bq27xxx_battery_platform_read;
 
-	return bq27xxx_battery_setup(di);
+	return bq27xxx_battery_setup(di, pdata->chip);
 }
 
 static int bq27xxx_battery_platform_remove(struct platform_device *pdev)
