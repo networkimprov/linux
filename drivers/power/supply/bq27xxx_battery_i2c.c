@@ -169,6 +169,7 @@ static int bq27xxx_battery_i2c_probe(struct i2c_client *client,
 
 	di->id = num;
 	di->dev = &client->dev;
+	di->chip = id->driver_data;
 	di->name = name;
 
 	di->bus.read = bq27xxx_battery_i2c_read;
@@ -176,7 +177,7 @@ static int bq27xxx_battery_i2c_probe(struct i2c_client *client,
 	di->bus.read_bulk = bq27xxx_battery_i2c_bulk_read;
 	di->bus.write_bulk = bq27xxx_battery_i2c_bulk_write;
 
-	ret = bq27xxx_battery_setup(di, id->driver_data);
+	ret = bq27xxx_battery_setup(di);
 	if (ret)
 		goto err_failed;
 

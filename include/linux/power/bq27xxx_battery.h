@@ -89,7 +89,7 @@ struct bq27xxx_device_info {
 };
 
 void bq27xxx_battery_update(struct bq27xxx_device_info *di);
-int bq27xxx_battery_setup(struct bq27xxx_device_info *di, enum bq27xxx_chip real_chip);
+int bq27xxx_battery_setup(struct bq27xxx_device_info *di);
 void bq27xxx_battery_teardown(struct bq27xxx_device_info *di);
 
 #endif

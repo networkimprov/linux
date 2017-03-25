@@ -759,36 +759,6 @@ static const char* bq27xxx_dm_reg_name[] = {
 	[BQ27XXX_DM_TERMINATE_VOLTAGE] = "terminate-voltage",
 };
 
-static struct bq27xxx_dm_reg bq27500_dm_regs[] = {
-	[BQ27XXX_DM_DESIGN_CAPACITY]   = { 48, 10, 2,    0, 65535 },
-	[BQ27XXX_DM_DESIGN_ENERGY]     = { }, /* missing on chip */
-	[BQ27XXX_DM_TERMINATE_VOLTAGE] = { 80, 48, 2, 1000, 32767 },
-};
-
-static struct bq27xxx_dm_reg bq27545_dm_regs[] = {
-	[BQ27XXX_DM_DESIGN_CAPACITY]   = { 48, 23, 2,    0, 32767 },
-	[BQ27XXX_DM_DESIGN_ENERGY]     = { 48, 25, 2,    0, 32767 },
-	[BQ27XXX_DM_TERMINATE_VOLTAGE] = { 80, 67, 2, 2800,  3700 },
-};
-
-static struct bq27xxx_dm_reg bq27421_dm_regs[] = {
-	[BQ27XXX_DM_DESIGN_CAPACITY]   = { 82, 10, 2,    0,  8000 },
-	[BQ27XXX_DM_DESIGN_ENERGY]     = { 82, 12, 2,    0, 32767 },
-	[BQ27XXX_DM_TERMINATE_VOLTAGE] = { 82, 16, 2, 2500,  3700 },
-};
-
-static struct bq27xxx_dm_reg bq27425_dm_regs[] = {
-	[BQ27XXX_DM_DESIGN_CAPACITY]   = { 82, 12, 2,    0, 32767 },
-	[BQ27XXX_DM_DESIGN_ENERGY]     = { 82, 14, 2,    0, 32767 },
-	[BQ27XXX_DM_TERMINATE_VOLTAGE] = { 82, 18, 2, 2800,  3700 },
-};
-
-static struct bq27xxx_dm_reg bq27621_dm_regs[] = {
-	[BQ27XXX_DM_DESIGN_CAPACITY]   = { 82, 3, 2,    0,  8000 },
-	[BQ27XXX_DM_DESIGN_ENERGY]     = { 82, 5, 2,    0, 32767 },
-	[BQ27XXX_DM_TERMINATE_VOLTAGE] = { 82, 9, 2, 2500,  3700 },
-};
-
 
 static int poll_interval_param_set(const char *val, const struct kernel_param *kp)
 {
@@ -1103,98 +1073,6 @@ out:
 
 	dev_err(di->dev, "bus error writing chip memory: %d\n", ret);
 	return ret;
-}
-
-static void bq27xxx_battery_set_config(struct bq27xxx_device_info *di,
-				       struct power_supply_battery_info *info)
-{
-	struct bq27xxx_dm_buf bd = BQ27XXX_DM_BUF(di, BQ27XXX_DM_DESIGN_CAPACITY);
-	struct bq27xxx_dm_buf bt = BQ27XXX_DM_BUF(di, BQ27XXX_DM_TERMINATE_VOLTAGE);
-
-	if (bq27xxx_battery_unseal(di) < 0)
-		return;
-
-	if (info->charge_full_design_uah != -EINVAL &&
-	    info->energy_full_design_uwh != -EINVAL) {
-		bq27xxx_battery_read_dm_block(di, &bd);
-		/* assume design energy & capacity are in same block */
-		bq27xxx_battery_update_dm_block(di, &bd,
-					BQ27XXX_DM_DESIGN_CAPACITY,
-					info->charge_full_design_uah / 1000);
-		bq27xxx_battery_update_dm_block(di, &bd,
-					BQ27XXX_DM_DESIGN_ENERGY,
-					info->energy_full_design_uwh / 1000);
-	}
-
-	if (info->voltage_min_design_uv != -EINVAL) {
-		bool same = bd.class == bt.class && bd.block == bt.block;
-		if (!same)
-			bq27xxx_battery_read_dm_block(di, &bt);
-		bq27xxx_battery_update_dm_block(di, same ? &bd : &bt,
-					BQ27XXX_DM_TERMINATE_VOLTAGE,
-					info->voltage_min_design_uv / 1000);
-	}
-
-	bq27xxx_battery_write_dm_block(di, &bd);
-	bq27xxx_battery_write_dm_block(di, &bt);
-
-	bq27xxx_battery_seal(di);
-
-	if (di->chip != BQ27421) { /* not a cfgupdate chip, so reset */
-		bq27xxx_write(di, BQ27XXX_REG_CTRL, BQ27XXX_RESET, false);
-		BQ27XXX_MSLEEP(300); /* reset time is not documented */
-	}
-	/* assume bq27xxx_battery_update() is called hereafter */
-}
-
-void bq27xxx_battery_settings(struct bq27xxx_device_info *di)
-{
-	struct power_supply_battery_info info = {};
-	unsigned int min, max;
-
-	if (!di->dm_regs)
-		return;
-
-	if (power_supply_get_battery_info(di->bat, &info) < 0)
-		return;
-
-	if (info.energy_full_design_uwh != info.charge_full_design_uah) {
-		if (info.energy_full_design_uwh == -EINVAL)
-			dev_warn(di->dev, "missing battery:energy-full-design-microwatt-hours\n");
-		else if (info.charge_full_design_uah == -EINVAL)
-			dev_warn(di->dev, "missing battery:charge-full-design-microamp-hours\n");
-	}
-
-	/* assume min == 0 */
-	max = di->dm_regs[BQ27XXX_DM_DESIGN_ENERGY].max;
-	if (info.energy_full_design_uwh > max * 1000) {
-		dev_err(di->dev, "invalid battery:energy-full-design-microwatt-hours %d\n",
-			info.energy_full_design_uwh);
-		info.energy_full_design_uwh = -EINVAL;
-	}
-
-	/* assume min == 0 */
-	max = di->dm_regs[BQ27XXX_DM_DESIGN_CAPACITY].max;
-	if (info.charge_full_design_uah > max * 1000) {
-		dev_err(di->dev, "invalid battery:charge-full-design-microamp-hours %d\n",
-			info.charge_full_design_uah);
-		info.charge_full_design_uah = -EINVAL;
-	}
-
-	min = di->dm_regs[BQ27XXX_DM_TERMINATE_VOLTAGE].min;
-	max = di->dm_regs[BQ27XXX_DM_TERMINATE_VOLTAGE].max;
-	if ((info.voltage_min_design_uv < min * 1000 ||
-	     info.voltage_min_design_uv > max * 1000) &&
-	     info.voltage_min_design_uv != -EINVAL) {
-		dev_err(di->dev, "invalid battery:voltage-min-design-microvolt %d\n",
-			info.voltage_min_design_uv);
-		info.voltage_min_design_uv = -EINVAL;
-	}
-
-	if ((info.energy_full_design_uwh != -EINVAL &&
-	     info.charge_full_design_uah != -EINVAL) ||
-	     info.voltage_min_design_uv  != -EINVAL)
-		bq27xxx_battery_set_config(di, &info);
 }
 
 /*
@@ -1708,13 +1586,6 @@ static int bq27xxx_battery_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN:
 		ret = bq27xxx_simple_value(di->charge_design_full, val);
 		break;
-	/*
-	 * TODO: Implement these to make registers set from
-	 * power_supply_battery_info visible in sysfs.
-	 */
-	case POWER_SUPPLY_PROP_ENERGY_FULL_DESIGN:
-	case POWER_SUPPLY_PROP_VOLTAGE_MIN_DESIGN:
-		return -EINVAL;
 	case POWER_SUPPLY_PROP_CYCLE_COUNT:
 		ret = bq27xxx_simple_value(di->cache.cycle_count, val);
 		break;
@@ -1745,48 +1616,10 @@ static void bq27xxx_external_power_changed(struct power_supply *psy)
 	schedule_delayed_work(&di->work, 0);
 }
 
-#define BQ27XXX_INIT(c,d,k)   \
-	di->chip       = (c); \
-	di->dm_regs    = (d); \
-	di->unseal_key = (k)
-
-int bq27xxx_battery_setup(struct bq27xxx_device_info *di, enum bq27xxx_chip real_chip)
+int bq27xxx_battery_setup(struct bq27xxx_device_info *di)
 {
 	struct power_supply_desc *psy_desc;
-	struct power_supply_config psy_cfg = {
-		.of_node = di->dev->of_node,
-		.drv_data = di,
-	};
-
-	switch(real_chip) {
-	                /* categories */
-	case BQ27000:   BQ27XXX_INIT(real_chip, 0, 0); break;
-	case BQ27010:   BQ27XXX_INIT(real_chip, 0, 0); break;
-	case BQ2750X:   BQ27XXX_INIT(real_chip, 0, 0); break;
-	case BQ27500:   BQ27XXX_INIT(real_chip, bq27500_dm_regs, 0x04143672); break;
-	case BQ27510G3: BQ27XXX_INIT(real_chip, 0, 0); break;
-	case BQ27520G1: BQ27XXX_INIT(real_chip, 0, 0); break;
-	case BQ27520G2: BQ27XXX_INIT(real_chip, 0, 0); break;
-	case BQ27520G3: BQ27XXX_INIT(real_chip, 0, 0); break;
-	case BQ27520G4: BQ27XXX_INIT(real_chip, 0, 0); break;
-	case BQ27530:   BQ27XXX_INIT(real_chip, 0, 0); break;
-	case BQ27541:   BQ27XXX_INIT(real_chip, 0, 0); break;
-	case BQ27545:   BQ27XXX_INIT(real_chip, bq27545_dm_regs, 0x04143672); break;
-	case BQ27421:   BQ27XXX_INIT(real_chip, bq27421_dm_regs, 0x80008000); break;
-
-	                /* members of categories */
-	case BQ2751X:   BQ27XXX_INIT(BQ27510G3, 0, 0); break;
-	case BQ2752X:   BQ27XXX_INIT(BQ27510G3, 0, 0); break;
-	case BQ27510G1: BQ27XXX_INIT(BQ27500,   0, 0); break;
-	case BQ27510G2: BQ27XXX_INIT(BQ27500,   0, 0); break;
-	case BQ27531:   BQ27XXX_INIT(BQ27530,   0, 0); break;
-	case BQ27542:   BQ27XXX_INIT(BQ27541,   0, 0); break;
-	case BQ27546:   BQ27XXX_INIT(BQ27541,   0, 0); break;
-	case BQ27742:   BQ27XXX_INIT(BQ27541,   0, 0); break;
-	case BQ27425:   BQ27XXX_INIT(BQ27421,   bq27425_dm_regs, 0x04143672); break;
-	case BQ27441:   BQ27XXX_INIT(BQ27421,   bq27421_dm_regs, 0x80008000); break;
-	case BQ27621:   BQ27XXX_INIT(BQ27421,   bq27621_dm_regs, 0x80008000); break;
-	}
+	struct power_supply_config psy_cfg = { .drv_data = di };
 
 	INIT_DELAYED_WORK(&di->work, bq27xxx_battery_poll);
 	mutex_init(&di->lock);
@@ -1811,7 +1644,6 @@ int bq27xxx_battery_setup(struct bq27xxx_device_info *di, enum bq27xxx_chip real
 
 	dev_info(di->dev, "support ver. %s enabled\n", DRIVER_VERSION);
 
-	bq27xxx_battery_settings(di);
 	bq27xxx_battery_update(di);
 
 	mutex_lock(&bq27xxx_list_lock);
@@ -1905,10 +1737,11 @@ static int bq27xxx_battery_platform_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, di);
 
 	di->dev = &pdev->dev;
+	di->chip = pdata->chip;
 	di->name = pdata->name ?: dev_name(&pdev->dev);
 	di->bus.read = bq27xxx_battery_platform_read;
 
-	return bq27xxx_battery_setup(di, pdata->chip);
+	return bq27xxx_battery_setup(di);
 }
 
 static int bq27xxx_battery_platform_remove(struct platform_device *pdev)
