@@ -296,6 +296,17 @@ extern void devm_extcon_unregister_notifier(struct device *dev,
 				struct extcon_dev *edev, unsigned int id,
 				struct notifier_block *nb);
 
+static __maybe_unused int extcon_register_notifier_all(struct extcon_dev *edev,
+				struct notifier_block *nb){return 0;}
+static __maybe_unused int extcon_unregister_notifier_all(struct extcon_dev *edev,
+				struct notifier_block *nb){return 0;}
+static __maybe_unused int devm_extcon_register_notifier_all(struct device *dev,
+				struct extcon_dev *edev,
+				struct notifier_block *nb){return 0;}
+static __maybe_unused void devm_extcon_unregister_notifier_all(struct device *dev,
+				struct extcon_dev *edev,
+				struct notifier_block *nb){}
+
 /*
  * Following API get the extcon device from devicetree.
  * This function use phandle of devicetree to get extcon device directly.
