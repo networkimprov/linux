@@ -279,7 +279,7 @@
 	energy-full-design-microwatt-hours = <5290000>;
 	charge-full-design-microamp-hours = <1430000>;
 	precharge-current-microamp = <256000>;
-	endcharge-current-microamp = <128000>;
+	charge-term-current-microamp = <128000>;
   };
 };
 
