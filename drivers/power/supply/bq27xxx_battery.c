@@ -1060,50 +1060,63 @@ static void bq27xxx_battery_update_dm_block(struct bq27xxx_device_info *di,
 	buf->dirty = true;
 }
 
-static int bq27xxx_battery_set_cfgupdate(struct bq27xxx_device_info *di, u16 state)
+static int bq27xxx_battery_cfgupdate_priv(struct bq27xxx_device_info *di, bool active)
 {
 	const int limit = 100;
+	u16 cmd = active ? BQ27XXX_SET_CFGUPDATE : BQ27XXX_SOFT_RESET;
 	int ret, try = limit;
 
-	ret = bq27xxx_write(di, BQ27XXX_REG_CTRL,
-			    state ? BQ27XXX_SET_CFGUPDATE : BQ27XXX_SOFT_RESET,
-			    false);
+	ret = bq27xxx_write(di, BQ27XXX_REG_CTRL, cmd, false);
 	if (ret < 0)
-		goto out;
+		return ret;
 
 	do {
 		BQ27XXX_MSLEEP(25);
-		ret = di->bus.read(di, di->regs[BQ27XXX_REG_FLAGS], false);
+		ret = bq27xxx_read(di, BQ27XXX_REG_FLAGS, false);
 		if (ret < 0)
-			goto out;
-	} while ((ret & BQ27XXX_FLAG_CFGUP) != state && --try);
+			return ret;
+	} while (!!(ret & BQ27XXX_FLAG_CFGUP) != active && --try);
 
 	if (!try) {
-		dev_err(di->dev, "timed out waiting for cfgupdate flag %d\n", !!state);
+		dev_err(di->dev, "timed out waiting for cfgupdate flag %d\n", active);
 		return -EINVAL;
 	}
 
-	if (limit-try > 3)
-		dev_warn(di->dev, "cfgupdate %d, retries %d\n", !!state, limit-try);
+	if (limit - try > 3)
+		dev_warn(di->dev, "cfgupdate %d, retries %d\n", active, limit - try);
 
 	return 0;
+}
 
-out:
-	dev_err(di->dev, "bus error on %s: %d\n", state ? "set_cfgupdate" : "soft_reset", ret);
+static inline int bq27xxx_battery_set_cfgupdate(struct bq27xxx_device_info *di)
+{
+	int ret = bq27xxx_battery_cfgupdate_priv(di, true);
+	if (ret < 0 && ret != -EINVAL)
+		dev_err(di->dev, "bus error on set_cfgupdate: %d\n", ret);
+
+	return ret;
+}
+
+static inline int bq27xxx_battery_soft_reset(struct bq27xxx_device_info *di)
+{
+	int ret = bq27xxx_battery_cfgupdate_priv(di, false);
+	if (ret < 0 && ret != -EINVAL)
+		dev_err(di->dev, "bus error on soft_reset: %d\n", ret);
+
 	return ret;
 }
 
 static int bq27xxx_battery_write_dm_block(struct bq27xxx_device_info *di,
 					  struct bq27xxx_dm_buf *buf)
 {
-	bool cfgup = di->chip == BQ27421; /* assume group supports cfgupdate */
+	bool cfgup = di->chip == BQ27421; /* assume related chips need cfgupdate */
 	int ret;
 
 	if (!buf->dirty)
 		return 0;
 
 	if (cfgup) {
-		ret = bq27xxx_battery_set_cfgupdate(di, BQ27XXX_FLAG_CFGUP);
+		ret = bq27xxx_battery_set_cfgupdate(di);
 		if (ret < 0)
 			return ret;
 	}
@@ -1133,13 +1146,12 @@ static int bq27xxx_battery_write_dm_block(struct bq27xxx_device_info *di,
 
 	/* DO NOT read BQ27XXX_DM_CKSUM here to verify it! That may cause NVM
 	 * corruption on the '425 chip (and perhaps others), which can damage
-	 * the chip. See TI bqtool for what not to do:
-	 * http://git.ti.com/bms-linux/bqtool/blobs/master/gauge.c#line328
+	 * the chip.
 	 */
 
 	if (cfgup) {
 		BQ27XXX_MSLEEP(1);
-		ret = bq27xxx_battery_set_cfgupdate(di, 0);
+		ret = bq27xxx_battery_soft_reset(di);
 		if (ret < 0)
 			return ret;
 	} else {
@@ -1152,7 +1164,7 @@ static int bq27xxx_battery_write_dm_block(struct bq27xxx_device_info *di,
 
 out:
 	if (cfgup)
-		bq27xxx_battery_set_cfgupdate(di, 0);
+		bq27xxx_battery_soft_reset(di);
 
 	dev_err(di->dev, "bus error writing chip memory: %d\n", ret);
 	return ret;
