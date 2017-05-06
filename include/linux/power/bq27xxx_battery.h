@@ -2,8 +2,9 @@
 #define __LINUX_BQ27X00_BATTERY_H__
 
 enum bq27xxx_chip {
+	/* all index bq27xxx_unseal_keys[] & bq27xxx_dm_regs[] */
+
 	/* these index bq27xxx_regs[] & bq27xxx_battery_props[] */
-	/* and map to themselves in bq27xxx_chips[]             */
 	BQ27000 = 1, /* bq27000, bq27200 */
 	BQ27010, /* bq27010, bq27210 */
 	BQ2750X, /* bq27500 deprecated alias */
@@ -19,7 +20,6 @@ enum bq27xxx_chip {
 	BQ27421, /* bq27421, bq27425, bq27441, bq27621 */
 	BQ27MAX,
 
-	/* these map to above in bq27xxx_chips[] */
 	BQ2751X, /* bq27510 deprecated alias */
 	BQ2752X, /* bq27520 deprecated alias */
 	BQ27510G1,
@@ -75,6 +75,7 @@ struct bq27xxx_reg_cache {
 struct bq27xxx_device_info {
 	struct device *dev;
 	int id;
+	enum bq27xxx_chip real_chip;
 	enum bq27xxx_chip chip;
 	bool ram_chip;
 	const char *name;

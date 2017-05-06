@@ -675,33 +675,6 @@ static struct {
 	BQ27XXX_PROP(BQ27421, bq27421_battery_props),
 };
 
-static enum bq27xxx_chip bq27xxx_chips[] = {
-	[BQ27000]   = BQ27000,
-	[BQ27010]   = BQ27010,
-	[BQ2750X]   = BQ2750X,
-	[BQ2751X]   = BQ27510G3,
-	[BQ2752X]   = BQ27510G3,
-	[BQ27500]   = BQ27500,
-	[BQ27510G1] = BQ27500,
-	[BQ27510G2] = BQ27500,
-	[BQ27510G3] = BQ27510G3,
-	[BQ27520G1] = BQ27520G1,
-	[BQ27520G2] = BQ27520G2,
-	[BQ27520G3] = BQ27520G3,
-	[BQ27520G4] = BQ27520G4,
-	[BQ27530]   = BQ27530,
-	[BQ27531]   = BQ27530,
-	[BQ27541]   = BQ27541,
-	[BQ27542]   = BQ27541,
-	[BQ27546]   = BQ27541,
-	[BQ27742]   = BQ27541,
-	[BQ27545]   = BQ27545,
-	[BQ27421]   = BQ27421,
-	[BQ27425]   = BQ27421,
-	[BQ27441]   = BQ27421,
-	[BQ27621]   = BQ27421,
-};
-
 static DEFINE_MUTEX(bq27xxx_list_lock);
 static LIST_HEAD(bq27xxx_battery_devices);
 
@@ -1849,9 +1822,8 @@ int bq27xxx_battery_setup(struct bq27xxx_device_info *di)
 
 	di->ram_chip = di->chip == BQ27421 || di->chip == BQ27441 || di->chip == BQ27621;
 
-	di->unseal_key = bq27xxx_unseal_keys[di->chip];
-	di->dm_regs = bq27xxx_dm_regs[di->chip];
-	di->chip = bq27xxx_chips[di->chip];
+	di->unseal_key = bq27xxx_unseal_keys[di->real_chip];
+	di->dm_regs = bq27xxx_dm_regs[di->real_chip];
 
 	di->regs = bq27xxx_regs[di->chip];
 
@@ -1971,7 +1943,7 @@ static int bq27xxx_battery_platform_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, di);
 
 	di->dev = &pdev->dev;
-	di->chip = pdata->chip;
+	di->chip = di->real_chip = pdata->chip;
 	di->name = pdata->name ?: dev_name(&pdev->dev);
 	di->bus.read = bq27xxx_battery_platform_read;
 
