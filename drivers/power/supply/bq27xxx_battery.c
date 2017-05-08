@@ -782,15 +782,16 @@ static u32 bq27xxx_unseal_keys[] = {
 };
 
 
-#ifdef CONFIG_BATTERY_BQ27XXX_DT_UPDATES_NVM
 static bool bq27xxx_dt_to_nvm = true;
-
 module_param_named(dt_monitored_battery_updates_nvm, bq27xxx_dt_to_nvm, bool, 0444);
 MODULE_PARM_DESC(dt_monitored_battery_updates_nvm,
-	"Devicetree monitored-battery config updates NVM/flash data memory, if present. Default is 1/y.");
-#else
-static bool bq27xxx_dt_to_nvm = false;
+	"Devicetree monitored-battery config updates data memory on NVM/flash chips.\n"
+	"Users must set this =0 when installing a different type of battery!\n"
+	"Default is =1."
+#ifndef CONFIG_BATTERY_BQ27XXX_DT_UPDATES_NVM
+	"\nSetting this affects future kernel updates, not the current configuration."
 #endif
+);
 
 static int poll_interval_param_set(const char *val, const struct kernel_param *kp)
 {
@@ -1015,7 +1016,11 @@ static void bq27xxx_battery_update_dm_block(struct bq27xxx_device_info *di,
 		return;
 	}
 
+#ifdef CONFIG_BATTERY_BQ27XXX_DT_UPDATES_NVM
 	if (!di->ram_chip && !bq27xxx_dt_to_nvm) {
+#else
+	if (!di->ram_chip) {
+#endif
 		/* devicetree and NVM differ; defer to NVM */
 		dev_warn(di->dev, "%s has %u; update to %u disallowed "
 #ifdef CONFIG_BATTERY_BQ27XXX_DT_UPDATES_NVM
