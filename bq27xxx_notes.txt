@@ -1,0 +1,16 @@
+Subject: [RFC v1 0/6] bq27xxx_battery data memory update
+To: Sebastian Reichel <sre@kernel.org>, "Pali Rohár" <pali.rohar@gmail.com>, linux-pm@vger.kernel.org
+CC: Paul Kocialkowski <contact@paulk.fr>
+
+Overview:
+* Reorganizes chip data definitions
+* Enables features landed in these patches:
+  dt-bindings: power: supply: bq27xxx: Add monitored-battery documentation
+  power: supply: bq27xxx: Add chip data memory read/write support
+  power: supply: bq27xxx: Add power_supply_battery_info support
+* Supports the following chips (only BQ27425 is active without #define DEBUG)
+  BQ27500, 545, 425, 421, 441, 621
+
+Notes on v1:
+* Not fully tested (hence RFC tag)
+
